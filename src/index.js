@@ -42,7 +42,7 @@ bot.on('chat_join_request', async (ctx)=>{
   console.log(ctx.chatJoinRequest.from)
   const replyRequest = `
   ${ctx.chatJoinRequest.from.first_name} подал(а) заявку на вступление
-  Логин: ${ctx.chatJoinRequest.from.username?`${ctx.chatJoinRequest.from.username}`: 'нету' }
+  Логин: ${ctx.chatJoinRequest.from.username?`@${ctx.chatJoinRequest.from.username}`: 'нету' }
   Имя: ${ctx.chatJoinRequest.from.first_name}
   Язык юзера: ${ctx.chatJoinRequest.from.language_code}
   <a href="tg://user?id=${ctx.chatJoinRequest.from.id}">Профиль</a>
