@@ -1,11 +1,12 @@
 const { Telegraf } = require("telegraf");
+require("dotenv").config();
 
 
-const bot = new Telegraf("6225897082:AAHhZ4gVlNovJKpDFHlbbq6yXWYCvBe4mO4");
+const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 
-let messageCount2 = 0;
-let messageCount3 = 0;
-let messageCount4 = 0;
+// let messageCount2 = 0;
+// let messageCount3 = 0;
+// let messageCount4 = 0;
 
 // bot.on('text', async (ctx) => {
 //   console.log(ctx.message)
@@ -40,11 +41,13 @@ bot.on('chat_join_request', async (ctx)=>{
   console.log(ctx.chatJoinRequest.from)
   const replyRequest = `
   ${ctx.chatJoinRequest.from.first_name} подал(а) заявку на вступление
-  Логин: \@${ctx.chatJoinRequest.from.username}
+  Логин: ${ctx.chatJoinRequest.from.username?`@${ctx.chatJoinRequest.from.username}`: 'нету' }
   Имя: ${ctx.chatJoinRequest.from.first_name}
   Язык юзера: ${ctx.chatJoinRequest.from.language_code}
+  [Профиль](tg://user?id=${ctx.chatJoinRequest.from.id})
   `
-  ctx.telegram.sendMessage(-1001295808191, replyRequest, {message_thread_id: 17137})
+  ctx.telegram.sendMessage(-1001295808191, replyRequest, {message_thread_id: 17137, parse_mode:"Markdown"})
+  //ctx.telegram.sendMessage(-1001959551535, replyRequest, {message_thread_id: 2, parse_mode:'Markdown'})
 })
 
 bot.launch()
