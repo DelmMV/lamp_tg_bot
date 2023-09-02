@@ -36,7 +36,6 @@ const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 //      }
 // });
 //bot.on('text', async(ctx)=> console.log(ctx.message))
-//[Профиль](tg://user?id=${ctx.chatJoinRequest.from.id})
 
 bot.on('chat_join_request', async (ctx)=>{
   console.log(ctx.chatJoinRequest.from)
@@ -45,9 +44,10 @@ bot.on('chat_join_request', async (ctx)=>{
   Логин: ${ctx.chatJoinRequest.from.username?`${ctx.chatJoinRequest.from.username}`: 'нету' }f
   Имя: ${ctx.chatJoinRequest.from.first_name}
   Язык юзера: ${ctx.chatJoinRequest.from.language_code}
+  [Профиль](tg://user?id=${ctx.chatJoinRequest.from.id})
   `
-  //ctx.telegram.sendMessage(-1001295808191, replyRequest, {message_thread_id: 17137, parse_mode:'Markdown'})
-  ctx.telegram.sendMessage(-1001959551535, replyRequest, {message_thread_id: 2, parse_mode:'Markdown'})
+  ctx.telegram.sendMessage(-1001295808191, replyRequest, {message_thread_id: 17137, parse_mode:'Markdown'})
+  //ctx.telegram.sendMessage(-1001959551535, replyRequest, {message_thread_id: 2, parse_mode:'Markdown'})
 })
 
 bot.launch()
