@@ -39,7 +39,7 @@ const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 
 bot.on('new_chat_members', async (ctx)=> {
   const replyRequest = `
-  <a href="tg://user?id=${ctx.message.from.id}">${ctx.chatJoinRequest.from.last_name?ctx.chatJoinRequest.from.last_name:""}</a> принят(а) в группу
+  <a href="tg://user?id=${ctx.message.from.id}">${ctx.message.from.last_name?ctx.message.from.last_name:""}</a> принят(а) в группу
   `
   ctx.telegram.sendMessage(-1001295808191, replyRequest, {message_thread_id: 17137, parse_mode:'HTML'})
   //ctx.telegram.sendMessage(-1001959551535, replyRequest, {message_thread_id: 2, parse_mode:'HTML'})
