@@ -38,7 +38,7 @@ const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 
 
 bot.on('message', (ctx) => {
-  console.log(ctx.message)
+  //console.log(ctx.message)
   let answer = `Ответ от пользователя <a href="tg://user?id=${ctx.message.from.id}">${ctx.message.from.first_name} ${ctx.message.from.last_name?ctx.message.from.last_name:""}</a>: ${ctx.message.text}`
   if(ctx.message.chat.type === "private") {
     ctx.telegram.sendMessage(-1001295808191, answer, {message_thread_id: 17137, parse_mode:'HTML'})
@@ -50,14 +50,14 @@ bot.on('new_chat_members', async (ctx)=> {
   const replyRequest = `
   <a href="tg://user?id=${ctx.message.from.id}">${ctx.message.from.first_name} ${ctx.message.from.last_name?ctx.message.from.last_name:""}</a> принят(а) в группу
   `
-  
+  console.log('new user')
   ctx.telegram.sendMessage(-1001295808191, replyRequest, {message_thread_id: 17137, parse_mode:'HTML'})
   //ctx.telegram.sendMessage(-1001959551535, replyRequest, {message_thread_id: 2, parse_mode:'HTML'})
 })
 
 bot.on('chat_join_request', async (ctx)=>{
   
-  console.log(ctx.chatJoinRequest.from)
+  //console.log(ctx.chatJoinRequest.from)
   const replyRequest = `
   ${ctx.chatJoinRequest.from.first_name} подал(а) заявку на вступление
   ID: <a href="tg://user?id=${ctx.chatJoinRequest.from.id}">${ctx.chatJoinRequest.from.id}</a>
