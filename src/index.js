@@ -37,7 +37,6 @@ const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 // });
 
 
-//
 bot.on('message', (ctx) => {
   console.log(ctx.message)
   let answer = `Ответ от пользователя <a href="tg://user?id=${ctx.message.from.id}">${ctx.message.from.first_name} ${ctx.message.from.last_name?ctx.message.from.last_name:""}</a>: ${ctx.message.text}`
@@ -57,7 +56,8 @@ bot.on('new_chat_members', async (ctx)=> {
 })
 
 bot.on('chat_join_request', async (ctx)=>{
-
+  
+  console.log(ctx.chatJoinRequest.from)
   const replyRequest = `
   ${ctx.chatJoinRequest.from.first_name} подал(а) заявку на вступление
   ID: <a href="tg://user?id=${ctx.chatJoinRequest.from.id}">${ctx.chatJoinRequest.from.id}</a>
