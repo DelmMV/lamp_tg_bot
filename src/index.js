@@ -1,4 +1,4 @@
-const { Telegraf } = require("telegraf");
+const { Telegraf, session } = require("telegraf");
 require("dotenv").config();
 
 
@@ -35,18 +35,29 @@ const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 //        messageCount4 = 0
 //      }
 // });
-//bot.on('text', async(ctx)=> console.log(ctx.message))
+
+
+//
+bot.on('message', (ctx) => {
+  console.log(ctx.message)
+  let answer = `Ответ от пользователя <a href="tg://user?id=${ctx.message.from.id}">${ctx.message.from.first_name} ${ctx.message.from.last_name?ctx.message.from.last_name:""}</a>: ${ctx.message.text}`
+  if(ctx.message.chat.type === "private") {
+    ctx.telegram.sendMessage(-1001295808191, answer, {message_thread_id: 17137, parse_mode:'HTML'})
+    //ctx.telegram.sendMessage(-1001959551535, answer, {message_thread_id: 2, parse_mode:'HTML'})
+  }
+})
 
 bot.on('new_chat_members', async (ctx)=> {
   const replyRequest = `
   <a href="tg://user?id=${ctx.message.from.id}">${ctx.message.from.first_name} ${ctx.message.from.last_name?ctx.message.from.last_name:""}</a> принят(а) в группу
   `
+  
   ctx.telegram.sendMessage(-1001295808191, replyRequest, {message_thread_id: 17137, parse_mode:'HTML'})
   //ctx.telegram.sendMessage(-1001959551535, replyRequest, {message_thread_id: 2, parse_mode:'HTML'})
 })
 
 bot.on('chat_join_request', async (ctx)=>{
-  console.log(ctx.chatJoinRequest.from)
+
   const replyRequest = `
   ${ctx.chatJoinRequest.from.first_name} подал(а) заявку на вступление
   ID: <a href="tg://user?id=${ctx.chatJoinRequest.from.id}">${ctx.chatJoinRequest.from.id}</a>
@@ -55,7 +66,17 @@ bot.on('chat_join_request', async (ctx)=>{
   Язык юзера: ${ctx.chatJoinRequest.from.language_code}
   <a href="tg://user?id=${ctx.chatJoinRequest.from.id}">Профиль</a>
   `
+  const answer = `
+  Здравствуйте! Вы направили заявку на вступление в сообщество МоноПитер ( t.me/eucriders ).
+    Такие заявки мы проверяем на ботов. Чтобы мы одобрили заявку, прошу написать в ответ, какое у вас моноколесо. Если не будет ответа на это сообщение в течение суток, оставляем за собой право отклонить вашу заявку.
+    В ожидании одобрения, предлагаю ознакомиться с правилами/ценностями нашего сообщества: https://t.me/eucriders/287907/365863
+    Спасибо за понимание!
+  `
+
+  ctx.telegram.sendMessage(ctx.chatJoinRequest.from.id, answer)// Ответ пользователю 
+
   ctx.telegram.sendMessage(-1001295808191, replyRequest, {message_thread_id: 17137, parse_mode:'HTML'})
+
   //ctx.telegram.sendMessage(-1001959551535, replyRequest, {message_thread_id: 2, parse_mode:'HTML'})
 })
 
