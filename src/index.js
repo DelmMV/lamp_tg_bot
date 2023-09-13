@@ -41,7 +41,12 @@ bot.on('new_chat_members', async (ctx)=> {
   const replyRequest = `
   <a href="tg://user?id=${ctx.message.from.id}">${ctx.message.from.first_name} ${ctx.message.from.last_name?ctx.message.from.last_name:""}</a> принят(а) в группу
   `
-  console.log('new user')
+  const answer = `
+  ${ctx.message.from.first_name} ${ctx.message.from.last_name?ctx.message.from.last_name:""}, добро пожаловать в наш чат!
+  `
+
+  ctx.telegram.sendMessage(ctx.message.from.id, answer)
+
   ctx.telegram.sendMessage(-1001295808191, replyRequest, {message_thread_id: 17137, parse_mode:'HTML'})
   //ctx.telegram.sendMessage(-1001959551535, replyRequest, {message_thread_id: 2, parse_mode:'HTML'})
 })
