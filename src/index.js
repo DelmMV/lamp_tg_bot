@@ -4,6 +4,22 @@ require("dotenv").config();
 
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 
+async function sendMessageAdminChat(chatId, message, thread) {
+  try {
+    await bot.telegram.sendMessage(chatId, message, thread)
+  } catch(error) {
+    console.log(error)
+  }
+}
+
+async function sendMessageUser(chatId, message) {
+  try {
+    await bot.telegram.sendMessage(chatId, message)
+  } catch(error) {
+    console.log(error)
+  }
+}
+
 // let messageCount2 = 0;
 // let messageCount3 = 0;
 // let messageCount4 = 0;
@@ -45,10 +61,10 @@ bot.on('new_chat_members', async (ctx)=> {
   ${ctx.message.from.first_name} ${ctx.message.from.last_name?ctx.message.from.last_name:""}, добро пожаловать в наш чат!
   `
 
-  ctx.telegram.sendMessage(ctx.message.from.id, answer)
+  sendMessageUser(ctx.message.from.id, answer)
 
-  ctx.telegram.sendMessage(-1001295808191, replyRequest, {message_thread_id: 17137, parse_mode:'HTML'})
-  //ctx.telegram.sendMessage(-1001959551535, replyRequest, {message_thread_id: 2, parse_mode:'HTML'})
+  sendMessageAdminChat(-1001295808191, replyRequest, {message_thread_id: 17137, parse_mode:'HTML'})
+  //sendMessageAdminChat(-1001959551535, replyRequest, {message_thread_id: 2, parse_mode:'HTML'})
 })
 
 bot.on('chat_join_request', async (ctx)=>{
@@ -69,19 +85,19 @@ bot.on('chat_join_request', async (ctx)=>{
     Спасибо за понимание!
   `
 
-  ctx.telegram.sendMessage(ctx.chatJoinRequest.from.id, answer)// Ответ пользователю 
+  sendMessageUser(ctx.chatJoinRequest.from.id, answer)// Ответ пользователю 
 
-  ctx.telegram.sendMessage(-1001295808191, replyRequest, {message_thread_id: 17137, parse_mode:'HTML'})
+  sendMessageAdminChat(-1001295808191, replyRequest, {message_thread_id: 17137, parse_mode:'HTML'})
 
-  //ctx.telegram.sendMessage(-1001959551535, replyRequest, {message_thread_id: 2, parse_mode:'HTML'})
+  //sendMessageAdminChat(-1001959551535, replyRequest, {message_thread_id: 2, parse_mode:'HTML'})
 })
 
 bot.on('message', (ctx) => {
   //console.log(ctx.message)
   let answer = `Ответ от пользователя <a href="tg://user?id=${ctx.message.from.id}">${ctx.message.from.first_name} ${ctx.message.from.last_name?ctx.message.from.last_name:""}</a>: ${ctx.message.text}`
   if(ctx.message.chat.type === "private") {
-    ctx.telegram.sendMessage(-1001295808191, answer, {message_thread_id: 17137, parse_mode:'HTML'})
-    //ctx.telegram.sendMessage(-1001959551535, answer, {message_thread_id: 2, parse_mode:'HTML'})
+    sendMessageAdminChat(-1001295808191, answer, {message_thread_id: 17137, parse_mode:'HTML'})
+    //sendMessageAdminChat(-1001959551535, answer, {message_thread_id: 2, parse_mode:'HTML'})
   }
 })
 
