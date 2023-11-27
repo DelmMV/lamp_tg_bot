@@ -56,7 +56,7 @@ bot.on('new_chat_members', async (ctx) => {
   ${ctx.message.new_chat_member.first_name} ${ctx.message.new_chat_member.last_name ? ctx.message.new_chat_member.last_name : ""}, добро пожаловать в наш чат!
   `;
 	
-	if (ctx.message.from.first_name != ctx.message.new_chat_member.first_name) {
+	if (ctx.message.from.first_name !== ctx.message.new_chat_member.first_name) {
     await sendMessageAdminChat(-1001295808191, replyRequestInvite, {message_thread_id: 17137, parse_mode: 'HTML'});
   } else {
     await sendMessageAdminChat(-1001295808191, replyRequest, {message_thread_id: 17137, parse_mode: 'HTML'});
