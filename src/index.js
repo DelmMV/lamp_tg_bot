@@ -33,8 +33,13 @@ bot.command('alarm', async (ctx) => {
 	const postDescription = description.trim();
 	const postLink = link.trim();
 	
+	const urlPattern = /^(http|https):\/\/.*/i;
+	if (!urlPattern.test(postLink)) {
+		return ctx.reply('Пожалуйста, укажите укажите после запятой ссылку на сообщения.');
+	}
+	
 	const message = `
-  Новый тревожный сигнал от пользователя ${ctx.message.from.first_name} ${ctx.message.from.last_name ? ctx.message.from.last_name : ''}:
+  Новый тревожный сигнал от пользователя <a href="tg://user?id=${ctx.message.from.id}">${ctx.message.from.first_name} ${ctx.message.from.last_name ? ctx.message.from.last_name : ""}</a>:
   Ссылка на пост: ${postLink}
   Описание: ${postDescription}
   `;
