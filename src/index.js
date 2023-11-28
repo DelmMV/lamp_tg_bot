@@ -25,7 +25,7 @@ bot.command('alarm', async (ctx) => {
 	const text = ctx.message.text.split(' ').slice(1).join(' ');
 	
 	if (!text || !text.includes(',')) {
-		return ctx.reply('Пожалуйста, введите через запятую текст с описанием и сылку на сообщения после команды /alarm.');
+		return ctx.reply('Пожалуйста, введите через запятую текст с описанием и ссылку на сообщения после команды /alarm.');
 	}
   
   const [description, link] = text.split(',');
@@ -35,7 +35,7 @@ bot.command('alarm', async (ctx) => {
 	
 	const urlPattern = /^(http|https):\/\/.*/i;
 	if (!urlPattern.test(postLink)) {
-		return ctx.reply('Пожалуйста, укажите укажите после запятой ссылку на сообщения.');
+		return ctx.reply('Пожалуйста, введите через запятую санчало текст с описанием, а потом ссылку на сообщения');
 	}
 	
 	const message = `
