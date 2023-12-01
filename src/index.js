@@ -66,7 +66,10 @@ bot.on('new_chat_members', async (ctx) => {
   } else {
     await sendMessageAdminChat(-1001295808191, replyRequest, {message_thread_id: 17137, parse_mode: 'HTML'});
   }
-  await sendMessageUser(ctx.message.new_chat_member.id, answer);
+	console.log(`${ctx.message.new_chat_member.id}
+								${ctx.message.chat.id}
+								${ctx.from.id}`)
+  await sendMessageUser(ctx.from.id, answer);
   
 });
 
