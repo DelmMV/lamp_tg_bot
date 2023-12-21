@@ -1,7 +1,13 @@
 const {Telegraf} = require("telegraf");
 require("dotenv").config();
 
+//Тестовая -1001959551535  message_thread_id: 2
+//id чата админов -1001295808191 message_thread_id: 17137
+//thread media  message_thread_id: 327902
+//id chat монопитер -1001405911884
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
+const lampChatId = '-1001295808191'
+const lampThreadId = '17137'
 
 function sendMessageAdminChat(chatId, message, thread) {
 	return bot.telegram.sendMessage(chatId, message, thread).catch((error) => {
@@ -44,7 +50,7 @@ bot.command('alarm', async (ctx) => {
   Описание: ${postDescription}
   `;
 	
-	await sendMessageAdminChat(-1001295808191, message, {message_thread_id: 17137, parse_mode: 'HTML'});
+	await sendMessageAdminChat(lampChatId, message, {message_thread_id: lampThreadId, parse_mode: 'HTML'});
 	
 	ctx.reply('Ваш тревожный сигнал отправлен администратору.');
 });
@@ -62,9 +68,9 @@ bot.on('new_chat_members', async (ctx) => {
   `;
 	
 	if (ctx.message.from.first_name !== ctx.message.new_chat_member.first_name) {
-    await sendMessageAdminChat(-1001295808191, replyRequestInvite, {message_thread_id: 17137, parse_mode: 'HTML'});
+    await sendMessageAdminChat(lampChatId, replyRequestInvite, {message_thread_id: lampThreadId, parse_mode: 'HTML'});
   } else {
-    await sendMessageAdminChat(-1001295808191, replyRequest, {message_thread_id: 17137, parse_mode: 'HTML'});
+    await sendMessageAdminChat(lampChatId, replyRequest, {message_thread_id: lampThreadId, parse_mode: 'HTML'});
   }
 	console.log(`${ctx.message.new_chat_member.id}
 								${ctx.message.chat.id}
@@ -88,21 +94,47 @@ bot.on('chat_join_request', async (ctx) => {
   `;
 	
 	await sendMessageUser(ctx.chatJoinRequest.from.id, answer);
-	await sendMessageAdminChat(-1001295808191, replyRequest, {message_thread_id: 17137, parse_mode: 'HTML'});
+	await sendMessageAdminChat(lampChatId, replyRequest, {message_thread_id: lampThreadId, parse_mode: 'HTML'});
 });
 
 bot.on('message', async (ctx) => {
+	let messageMedia = ''
+	
+	function filterMediaMessage (text) {
+		console.log(text)
+		if(text) {
+			const splitText = text.split(' ')
+			messageMedia = splitText.filter(word => word === '#media' || word === '#медиа').toString();
+		}
+	}
+	filterMediaMessage(ctx.message.caption)
+	console.log(ctx.message)
+	
+	
 	if (ctx.message.chat.type === "private") {
 		if (ctx.message.photo) {
 			const answer1 = `Ответ от пользователя <a href="tg://user?id=${ctx.message.from.id}">${ctx.message.from.first_name} ${ctx.message.from.last_name ? ctx.message.from.last_name : ""}</a>: `;
-			await sendMessageAdminChat(-1001295808191, answer1, {message_thread_id: 17137, parse_mode: 'HTML'});
-			await sendMessageAdminChatPhoto(-1001295808191, ctx.message, {message_thread_id: 17137});
+			await sendMessageAdminChat(lampChatId, answer1, {message_thread_id: lampThreadId, parse_mode: 'HTML'});
+			await sendMessageAdminChatPhoto(lampChatId, ctx.message, {message_thread_id: lampThreadId});
 		} else if (ctx.message.text && ctx.message.chat.type === "private") {
 			const answer2 = `Ответ от пользователя <a href="tg://user?id=${ctx.message.from.id}">${ctx.message.from.first_name} ${ctx.message.from.last_name ? ctx.message.from.last_name : ""}</a>: ${ctx.message.text}`;
-			await sendMessageAdminChat(-1001295808191, answer2, {message_thread_id: 17137, parse_mode: 'HTML'});
+			await sendMessageAdminChat(lampChatId, answer2, {message_thread_id: lampThreadId, parse_mode: 'HTML'});
 		}
 	}
-	
+	if(messageMedia === '#media' || messageMedia === '#медиа') {
+		
+		const chatUserName = ctx.message.chat.username;
+		const sourceChatId = ctx.message.chat.id;
+		const destinationChatId = -1001405911884;
+		const messageId = ctx.message.message_id;
+		const messageThreadId = ctx.message.message_thread_id;
+		
+		
+		await ctx.telegram.forwardMessage(destinationChatId, sourceChatId, messageId,{ message_thread_id: 327902});
+		await ctx.telegram.sendMessage(destinationChatId, `https://t.me/${chatUserName}/${messageThreadId}/${messageId}`, { message_thread_id: 327902 });
+		
+	}
 });
 
 bot.launch();
+
