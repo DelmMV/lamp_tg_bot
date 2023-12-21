@@ -3,6 +3,9 @@ require("dotenv").config();
 
 //Тестовая -1001959551535  message_thread_id: 2
 //id чата админов -1001295808191 message_thread_id: 17137
+
+
+
 //thread media  message_thread_id: 327902
 //id chat монопитер -1001405911884
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
@@ -98,7 +101,10 @@ bot.on('chat_join_request', async (ctx) => {
 });
 
 bot.on('message', async (ctx) => {
+	
+	
 	let messageMedia = ''
+	let replyMessageMedia = ''
 	
 	function filterMediaMessage (text) {
 		console.log(text)
@@ -107,9 +113,16 @@ bot.on('message', async (ctx) => {
 			messageMedia = splitText.filter(word => word === '#media' || word === '#медиа').toString();
 		}
 	}
-	filterMediaMessage(ctx.message.caption)
-	console.log(ctx.message)
 	
+	function replyFilterMediaMessage (text) {
+		
+		if(text) {
+			const splitText = text.split(' ')
+			replyMessageMedia = splitText.filter(word => word === '#media' || word === '#медиа').toString();
+		}
+	}
+	filterMediaMessage(ctx.message.caption)
+	replyFilterMediaMessage(ctx.message.text)
 	
 	if (ctx.message.chat.type === "private") {
 		if (ctx.message.photo) {
@@ -130,11 +143,26 @@ bot.on('message', async (ctx) => {
 		const messageThreadId = ctx.message.message_thread_id;
 		
 		
-		await ctx.telegram.forwardMessage(destinationChatId, sourceChatId, messageId,{ message_thread_id: 327902});
-		await ctx.telegram.sendMessage(destinationChatId, `https://t.me/${chatUserName}/${messageThreadId}/${messageId}`, { message_thread_id: 327902 });
-		
+		await ctx.telegram.forwardMessage(destinationChatId, sourceChatId, messageId,{ message_thread_id: 2});
+		await ctx.telegram.sendMessage(destinationChatId, `https://t.me/${chatUserName}/${messageThreadId}/${messageId}`, { message_thread_id: 2 });
 	}
+	
+	if(replyMessageMedia === '#media' || replyMessageMedia === '#медиа'){
+		
+		if(ctx.message.reply_to_message.photo || ctx.message.reply_to_message.video) {
+			const chatUserName = ctx.message.reply_to_message.chat.username;
+			const sourceChatId = ctx.message.reply_to_message.chat.id;
+			const destinationChatId = -1001405911884;
+			const messageId = ctx.message.reply_to_message.message_id;
+			const messageThreadId = ctx.message.reply_to_message.message_thread_id;
+			
+			await ctx.telegram.forwardMessage(destinationChatId, sourceChatId, messageId,{ message_thread_id: 327902});
+			await ctx.telegram.sendMessage(destinationChatId, `https://t.me/${chatUserName}/${messageThreadId}/${messageId}`, { message_thread_id: 327902 });
+		}
+	}
+	
 });
+
 
 bot.launch();
 
