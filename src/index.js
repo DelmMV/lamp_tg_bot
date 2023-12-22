@@ -143,7 +143,7 @@ bot.on('message', async (ctx) => {
 		
 		
 		await ctx.telegram.forwardMessage(destinationChatId, sourceChatId, messageId,{ message_thread_id: 327902 }).catch((error)=> {console.log(error)});
-		await ctx.telegram.sendMessage(destinationChatId, `https://t.me/${chatUserName}/${messageThreadId}/${messageId}`, { message_thread_id: 327902 }).catch((error)=> {console.log(error)});;
+		await ctx.telegram.sendMessage(destinationChatId, `https://t.me/${chatUserName}/${messageThreadId}/${messageId}`, { message_thread_id: 327902 }).catch((error)=> {console.log(error)});
 	}
 	
 	if(replyMessageMedia === '#media' || replyMessageMedia === '#медиа'){
@@ -155,8 +155,8 @@ bot.on('message', async (ctx) => {
 			const messageId = ctx.message.reply_to_message.message_id;
 			const messageThreadId = ctx.message.reply_to_message.message_thread_id;
 			
-			await ctx.telegram.forwardMessage(destinationChatId, sourceChatId, messageId,{ message_thread_id: 327902}).catch((error)=> {console.log(error)});;
-			await ctx.telegram.sendMessage(destinationChatId, `https://t.me/${chatUserName}/${messageThreadId}/${messageId}`, { message_thread_id: 327902 }).catch((error)=> {console.log(error)});;
+			await ctx.telegram.forwardMessage(destinationChatId, sourceChatId, messageId,{ message_thread_id: 327902}).catch((error)=> {console.log(error)});
+			await ctx.telegram.sendMessage(destinationChatId, `https://t.me/${chatUserName}/${messageThreadId}/${messageId}`, { message_thread_id: 327902 }).catch((error)=> {console.log(error)});
 		}
 	}
 	
