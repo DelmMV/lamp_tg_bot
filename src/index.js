@@ -107,7 +107,6 @@ bot.on('message', async (ctx) => {
 	let replyMessageMedia = ''
 	
 	function filterMediaMessage (text) {
-		console.log(text)
 		if(text) {
 			const splitText = text.split(' ')
 			messageMedia = splitText.filter(word => word === '#media' || word === '#медиа').toString();
@@ -143,8 +142,8 @@ bot.on('message', async (ctx) => {
 		const messageThreadId = ctx.message.message_thread_id;
 		
 		
-		await ctx.telegram.forwardMessage(destinationChatId, sourceChatId, messageId,{ message_thread_id: 2});
-		await ctx.telegram.sendMessage(destinationChatId, `https://t.me/${chatUserName}/${messageThreadId}/${messageId}`, { message_thread_id: 2 });
+		await ctx.telegram.forwardMessage(destinationChatId, sourceChatId, messageId,{ message_thread_id: 327902 }).catch((error)=> {console.log(error)});
+		await ctx.telegram.sendMessage(destinationChatId, `https://t.me/${chatUserName}/${messageThreadId}/${messageId}`, { message_thread_id: 327902 }).catch((error)=> {console.log(error)});;
 	}
 	
 	if(replyMessageMedia === '#media' || replyMessageMedia === '#медиа'){
@@ -156,8 +155,8 @@ bot.on('message', async (ctx) => {
 			const messageId = ctx.message.reply_to_message.message_id;
 			const messageThreadId = ctx.message.reply_to_message.message_thread_id;
 			
-			await ctx.telegram.forwardMessage(destinationChatId, sourceChatId, messageId,{ message_thread_id: 327902});
-			await ctx.telegram.sendMessage(destinationChatId, `https://t.me/${chatUserName}/${messageThreadId}/${messageId}`, { message_thread_id: 327902 });
+			await ctx.telegram.forwardMessage(destinationChatId, sourceChatId, messageId,{ message_thread_id: 327902}).catch((error)=> {console.log(error)});;
+			await ctx.telegram.sendMessage(destinationChatId, `https://t.me/${chatUserName}/${messageThreadId}/${messageId}`, { message_thread_id: 327902 }).catch((error)=> {console.log(error)});;
 		}
 	}
 	
