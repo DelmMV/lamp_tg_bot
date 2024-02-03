@@ -4,10 +4,9 @@ require("dotenv").config();
 //Тестовая -1001959551535  message_thread_id: 2
 //id чата админов -1001295808191 message_thread_id: 17137
 
-
-
 //thread media  message_thread_id: 327902
 //id chat монопитер -1001405911884
+
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 const lampChatId = '-1001295808191'
 const lampThreadId = '17137'
@@ -36,8 +35,8 @@ bot.command('alarm', async (ctx) => {
 	if (!text || !text.includes(',')) {
 		return ctx.reply('Пожалуйста, введите через запятую текст с описанием и ссылку на сообщения после команды /alarm.');
 	}
-  
-  const [description, link] = text.split(',');
+	
+	const [description, link] = text.split(',');
 	
 	const postDescription = description.trim();
 	const postLink = link.trim();
@@ -71,15 +70,15 @@ bot.on('new_chat_members', async (ctx) => {
   `;
 	
 	if (ctx.message.from.first_name !== ctx.message.new_chat_member.first_name) {
-    await sendMessageAdminChat(lampChatId, replyRequestInvite, {message_thread_id: lampThreadId, parse_mode: 'HTML'});
-  } else {
-    await sendMessageAdminChat(lampChatId, replyRequest, {message_thread_id: lampThreadId, parse_mode: 'HTML'});
-  }
+		await sendMessageAdminChat(lampChatId, replyRequestInvite, {message_thread_id: lampThreadId, parse_mode: 'HTML'});
+	} else {
+		await sendMessageAdminChat(lampChatId, replyRequest, {message_thread_id: lampThreadId, parse_mode: 'HTML'});
+	}
 	console.log(`${ctx.message.new_chat_member.id}
 								${ctx.message.chat.id}
 								${ctx.from.id}`)
-  await sendMessageUser(ctx.from.id, answer);
-  
+	await sendMessageUser(ctx.from.id, answer);
+	
 });
 
 bot.on('chat_join_request', async (ctx) => {
@@ -91,9 +90,15 @@ bot.on('chat_join_request', async (ctx) => {
   Язык юзера: ${ctx.chatJoinRequest.from.language_code}
   `;
 	const answer = `
-  Чтобы мы одобрили заявку, прошу написать в ответе, какое у вас моноколесо или прикрепить его фото. Если не будет ответа на это сообщение в течение суток, оставляем за собой право отклонить вашу заявку.
-  В ожидании одобрения, предлагаю ознакомиться с правилами/ценностями нашего сообщества: https://t.me/eucriders/287907/403321
-  Спасибо за понимание!
+		Привет! Получили от тебя заявку на вступление в сообщество МоноПитер ( t.me/eucriders ).
+		Такие заявки мы проверяем на ботов.
+		Если уже есть моноколесо, то напиши в ответ, какое! Можешь приложить его фото ))
+		Ещё без колеса? Тогда расскажи, что привело тебя к нам? В нашем сообществе всегда помогут с выбором, обучением и вопросами обслуживания.
+		
+		Не будет ответа на это сообщение в течение суток - придётся отклонить заявку.
+		Но если что, после отклонения заявку можно подать повторно!
+		
+		Спасибо за понимание!
   `;
 	
 	await sendMessageUser(ctx.chatJoinRequest.from.id, answer);
@@ -101,25 +106,24 @@ bot.on('chat_join_request', async (ctx) => {
 });
 
 bot.on('message', async (ctx) => {
-	
-	
 	let messageMedia = ''
 	let replyMessageMedia = ''
 	
-	function filterMediaMessage (text) {
-		if(text) {
+	function filterMediaMessage(text) {
+		if (text) {
 			const splitText = text.split(' ')
 			messageMedia = splitText.filter(word => word === '#media' || word === '#медиа').toString();
 		}
 	}
 	
-	function replyFilterMediaMessage (text) {
+	function replyFilterMediaMessage(text) {
 		
-		if(text) {
+		if (text) {
 			const splitText = text.split(' ')
 			replyMessageMedia = splitText.filter(word => word === '#media' || word === '#медиа').toString();
 		}
 	}
+	
 	filterMediaMessage(ctx.message.caption)
 	replyFilterMediaMessage(ctx.message.text)
 	
@@ -133,7 +137,7 @@ bot.on('message', async (ctx) => {
 			await sendMessageAdminChat(lampChatId, answer2, {message_thread_id: lampThreadId, parse_mode: 'HTML'});
 		}
 	}
-	if(messageMedia === '#media' || messageMedia === '#медиа') {
+	if (messageMedia === '#media' || messageMedia === '#медиа') {
 		
 		const chatUserName = ctx.message.chat.username;
 		const sourceChatId = ctx.message.chat.id;
@@ -142,26 +146,37 @@ bot.on('message', async (ctx) => {
 		const messageThreadId = ctx.message.message_thread_id;
 		
 		
-		await ctx.telegram.forwardMessage(destinationChatId, sourceChatId, messageId,{ message_thread_id: 327902 }).catch((error)=> {console.log(error)});
-		await ctx.telegram.sendMessage(destinationChatId, `https://t.me/${chatUserName}/${messageThreadId}/${messageId}`, { message_thread_id: 327902 }).catch((error)=> {console.log(error)});
+		await ctx.telegram.forwardMessage(destinationChatId, sourceChatId, messageId, {message_thread_id: 327902})
+				.catch((error) => {
+					console.log(error)
+				});
+		await ctx.telegram.sendMessage(destinationChatId, `https://t.me/${chatUserName}/${messageThreadId}/${messageId}`, {message_thread_id: 327902})
+				.catch((error) => {
+					console.log(error)
+				});
 	}
 	
-	if(replyMessageMedia === '#media' || replyMessageMedia === '#медиа'){
+	if (replyMessageMedia === '#media' || replyMessageMedia === '#медиа') {
 		
-		if(ctx.message.reply_to_message.photo || ctx.message.reply_to_message.video) {
+		if (ctx.message.reply_to_message.photo || ctx.message.reply_to_message.video) {
 			const chatUserName = ctx.message.reply_to_message.chat.username;
 			const sourceChatId = ctx.message.reply_to_message.chat.id;
 			const destinationChatId = -1001405911884;
 			const messageId = ctx.message.reply_to_message.message_id;
 			const messageThreadId = ctx.message.reply_to_message.message_thread_id;
 			
-			await ctx.telegram.forwardMessage(destinationChatId, sourceChatId, messageId,{ message_thread_id: 327902}).catch((error)=> {console.log(error)});
-			await ctx.telegram.sendMessage(destinationChatId, `https://t.me/${chatUserName}/${messageThreadId}/${messageId}`, { message_thread_id: 327902 }).catch((error)=> {console.log(error)});
+			await ctx.telegram.forwardMessage(destinationChatId, sourceChatId, messageId, {message_thread_id: 327902})
+					.catch((error) => {
+						console.log(error)
+					});
+			await ctx.telegram.sendMessage(destinationChatId, `https://t.me/${chatUserName}/${messageThreadId}/${messageId}`, {message_thread_id: 327902})
+					.catch((error) => {
+						console.log(error)
+					});
 		}
 	}
 	
 });
-
 
 bot.launch();
 
