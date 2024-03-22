@@ -8,7 +8,7 @@ require("dotenv").config();
 //id chat монопитер -1001405911884
 
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
-const lampChatId = '-1001295808191'
+const adminChatId = '-1001295808191'
 const lampThreadId = '17137'
 
 function sendMessageAdminChat(chatId, message, thread) {
@@ -52,7 +52,7 @@ bot.command('alarm', async (ctx) => {
   Описание: ${postDescription}
   `;
 	
-	await sendMessageAdminChat(lampChatId, message, {message_thread_id: lampThreadId, parse_mode: 'HTML'});
+	await sendMessageAdminChat(adminChatId, message, {message_thread_id: lampThreadId, parse_mode: 'HTML'});
 	
 	ctx.reply('Ваш тревожный сигнал отправлен администратору.');
 });
@@ -70,9 +70,9 @@ bot.on('new_chat_members', async (ctx) => {
   `;
 	
 	if (ctx.message.from.first_name !== ctx.message.new_chat_member.first_name) {
-		await sendMessageAdminChat(lampChatId, replyRequestInvite, {message_thread_id: lampThreadId, parse_mode: 'HTML'});
+		await sendMessageAdminChat(adminChatId, replyRequestInvite, {message_thread_id: lampThreadId, parse_mode: 'HTML'});
 	} else {
-		await sendMessageAdminChat(lampChatId, replyRequest, {message_thread_id: lampThreadId, parse_mode: 'HTML'});
+		await sendMessageAdminChat(adminChatId, replyRequest, {message_thread_id: lampThreadId, parse_mode: 'HTML'});
 	}
 	console.log(`${ctx.message.new_chat_member.id}
 								${ctx.message.chat.id}
@@ -103,7 +103,7 @@ bot.on('chat_join_request', async (ctx) => {
   `;
 	
 	await sendMessageUser(ctx.chatJoinRequest.from.id, answer);
-	await sendMessageAdminChat(lampChatId, replyRequest, {message_thread_id: lampThreadId, parse_mode: 'HTML'});
+	await sendMessageAdminChat(adminChatId, replyRequest, {message_thread_id: lampThreadId, parse_mode: 'HTML'});
 });
 
 bot.on('message', async (ctx) => {
@@ -112,7 +112,7 @@ bot.on('message', async (ctx) => {
 	
 	function filterMediaMessage(text) {
 		if (text) {
-			const splitText = text.split(' ')
+			const splitText = text.split(/[\s\n]+/)
 			messageMedia = splitText.filter(word => word === '#media' || word === '#медиа').toString();
 		}
 	}
@@ -120,7 +120,7 @@ bot.on('message', async (ctx) => {
 	function replyFilterMediaMessage(text) {
 		
 		if (text) {
-			const splitText = text.split(' ')
+			const splitText = text.split(/[\s\n]+/)
 			replyMessageMedia = splitText.filter(word => word === '#media' || word === '#медиа').toString();
 		}
 	}
@@ -131,11 +131,11 @@ bot.on('message', async (ctx) => {
 	if (ctx.message.chat.type === "private") {
 		if (ctx.message.photo) {
 			const answer1 = `Ответ от пользователя <a href="tg://user?id=${ctx.message.from.id}">${ctx.message.from.first_name} ${ctx.message.from.last_name ? ctx.message.from.last_name : ""}</a>: `;
-			await sendMessageAdminChat(lampChatId, answer1, {message_thread_id: lampThreadId, parse_mode: 'HTML'});
-			await sendMessageAdminChatPhoto(lampChatId, ctx.message, {message_thread_id: lampThreadId});
+			await sendMessageAdminChat(adminChatId, answer1, {message_thread_id: lampThreadId, parse_mode: 'HTML'});
+			await sendMessageAdminChatPhoto(adminChatId, ctx.message, {message_thread_id: lampThreadId});
 		} else if (ctx.message.text && ctx.message.chat.type === "private") {
 			const answer2 = `Ответ от пользователя <a href="tg://user?id=${ctx.message.from.id}">${ctx.message.from.first_name} ${ctx.message.from.last_name ? ctx.message.from.last_name : ""}</a>: ${ctx.message.text}`;
-			await sendMessageAdminChat(lampChatId, answer2, {message_thread_id: lampThreadId, parse_mode: 'HTML'});
+			await sendMessageAdminChat(adminChatId, answer2, {message_thread_id: lampThreadId, parse_mode: 'HTML'});
 		}
 	}
 	if (messageMedia === '#media' || messageMedia === '#медиа') {
