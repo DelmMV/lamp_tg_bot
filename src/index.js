@@ -13,8 +13,8 @@ const mongoUrl = 'mongodb://localhost:27017';
 
 const adminChatId = -1001295808191
 const lampThreadId = 17137
-const mediaThreadId = 327902
-const monoPiterChatId = -1001405911884
+const mediaThreadId = 2
+const monoPiterChatId = -1001959551535
 const urlComments = 'http://192.168.1.101:5173?mediaId='
 
 const client = new MongoClient(mongoUrl);
@@ -79,8 +79,8 @@ async function handleMediaGroup(ctx, messages) {
 		
 		if (media.length > 0) {
 			await ctx.telegram.sendMediaGroup(monoPiterChatId, media, { message_thread_id: mediaThreadId });
-			await ctx.telegram.sendMessage(monoPiterChatId `https://t.me/${chatUserName}/${messageThreadId}/${messageId}`, {
-				message_thread_id: mediaThreadId,
+			await ctx.telegram.sendMessage(monoPiterChatId, `https://t.me/${chatUserName}/${messageThreadId}/${messageId}`, {
+				message_thread_id: mediaThreadId
 				// reply_markup: {
 				// 	inline_keyboard: [
 				// 		[
@@ -114,7 +114,7 @@ async function handleSingleMessage(ctx) {
 					ctx.message.text ? ctx.message.reply_to_message.photo.length - 1 : ctx.message.photo.length - 1
 					].file_id, {
 				message_thread_id: mediaThreadId,
-				caption: `https://t.me/${chatUserName}/${messageThreadId}/${messageId}`,
+				caption: `https://t.me/${chatUserName}/${messageThreadId}/${messageId}`
 				// reply_markup: {
 				// 	inline_keyboard: [
 				// 		[
@@ -129,7 +129,7 @@ async function handleSingleMessage(ctx) {
 		} else if (ctx.message.video) {
 			await ctx.telegram.sendVideo(monoPiterChatId, ctx.message.video.file_id, {
 				message_thread_id: mediaThreadId,
-				caption: `https://t.me/${chatUserName}/${messageThreadId}/${messageId}`,
+				caption: `https://t.me/${chatUserName}/${messageThreadId}/${messageId}`
 				// reply_markup: {
 				// 	inline_keyboard: [
 				// 		[
