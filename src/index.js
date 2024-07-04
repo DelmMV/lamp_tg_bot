@@ -1,4 +1,5 @@
 const {Telegraf} = require("telegraf");
+const { MongoClient, ObjectId } = require('mongodb');
 require("dotenv").config();
 
 //Тестовая -1001959551535  message_thread_id: 2
@@ -8,8 +9,29 @@ require("dotenv").config();
 //id chat монопитер -1001405911884
 
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
-const adminChatId = '-1001295808191'
-const lampThreadId = '17137'
+const mongoUrl = 'mongodb://localhost:27017';
+
+const adminChatId = -1001295808191
+const lampThreadId = 17137
+const mediaThreadId = 327902
+const monoPiterChatId = -1001405911884
+const urlComments = 'http://192.168.1.101:5173?mediaId='
+
+const client = new MongoClient(mongoUrl);
+let db;
+async function main() {
+	try {
+		await client.connect();
+		db = client.db('telegramBot');
+		console.log("Connected to MongoDB");
+	} catch (error) {
+		console.error("MongoDB connection error:", error);
+	}
+}
+
+main();
+
+//Start functions////////////////////////////////////////
 
 function sendMessageAdminChat(chatId, message, thread) {
 	return bot.telegram.sendMessage(chatId, message, thread).catch((error) => {
@@ -28,6 +50,147 @@ function sendMessageUser(chatId, message) {
 		console.log(error);
 	});
 }
+
+async function handleMediaGroup(ctx, messages) {
+	try {
+		const mediaCollection = db.collection('media');
+		const mediaMessage = ctx.message;
+		const result = await mediaCollection.insertOne(mediaMessage);
+		
+		const chatUserName = ctx.message.chat.username;
+		const messageId = ctx.message.message_id;
+		const messageThreadId = ctx.message.message_thread_id;
+		
+		const media = messages.map(message => {
+			if (message.photo) {
+				return {
+					type: 'photo',
+					media: message.photo[message.photo.length - 1].file_id,
+					caption: message.caption || ''
+				};
+			} else if (message.video) {
+				return {
+					type: 'video',
+					media: message.video.file_id,
+					caption: message.caption || '',
+				};
+			}
+		}).filter(Boolean); // Убираем неопределенные значения
+		
+		if (media.length > 0) {
+			await ctx.telegram.sendMediaGroup(monoPiterChatId, media, { message_thread_id: mediaThreadId });
+			await ctx.telegram.sendMessage(monoPiterChatId `https://t.me/${chatUserName}/${messageThreadId}/${messageId}`, {
+				message_thread_id: mediaThreadId,
+				// reply_markup: {
+				// 	inline_keyboard: [
+				// 		[
+				// 			{
+				// 				text: 'Прокомментировать',
+				// 				url: `${urlComments}${result.insertedId}`
+				// 			}
+				// 		]
+				// 	]
+				// }
+			});
+		}
+	} catch (error) {
+		console.error('Ошибка при обработке группы медиа:', error);
+	}
+}
+
+async function handleSingleMessage(ctx) {
+	try {
+		const mediaCollection = db.collection('media');
+		const mediaMessage = ctx.message;
+		const result = await mediaCollection.insertOne(mediaMessage);
+		
+		const chatUserName = ctx.message.chat.username;
+		const messageId = ctx.message.message_id;
+		const messageThreadId = ctx.message.message_thread_id;
+		
+		const ctxMessage = ctx.message.text ? ctx.message.reply_to_message.photo : ctx.message.photo
+		if (ctxMessage) {
+			await ctx.telegram.sendPhoto(monoPiterChatId, ctxMessage[
+					ctx.message.text ? ctx.message.reply_to_message.photo.length - 1 : ctx.message.photo.length - 1
+					].file_id, {
+				message_thread_id: mediaThreadId,
+				caption: `https://t.me/${chatUserName}/${messageThreadId}/${messageId}`,
+				// reply_markup: {
+				// 	inline_keyboard: [
+				// 		[
+				// 			{
+				// 				text: 'Прокомментировать',
+				// 				url: `${urlComments}${result.insertedId}`
+				// 			}
+				// 		]
+				// 	]
+				// }
+			});
+		} else if (ctx.message.video) {
+			await ctx.telegram.sendVideo(monoPiterChatId, ctx.message.video.file_id, {
+				message_thread_id: mediaThreadId,
+				caption: `https://t.me/${chatUserName}/${messageThreadId}/${messageId}`,
+				// reply_markup: {
+				// 	inline_keyboard: [
+				// 		[
+				// 			{
+				// 				text: 'Прокомментировать',
+				// 				url: `${urlComments}${result.insertedId}`
+				// 			}
+				// 		]
+				// 	]
+				// }
+			});
+		}
+	} catch (error) {
+		console.error('Ошибка при обработке одиночного медиа:', error);
+	}
+}
+
+function hasMediaHashtag(text) {
+	return text && (text.includes('#media') || text.includes('#медиа'));
+}
+
+async function getMediaGroupMessages(ctx, media_group_id) {
+	
+	try {
+		const messages = await ctx.telegram.getUpdates({
+			allowed_updates: ['message'],
+			limit: 50
+		}).then(res => res.map(update => console.log(update) || update.message.text?update.message.reply_to_message:update.message)
+				.filter(message => message.media_group_id === media_group_id));
+		return messages;
+	} catch (error) {
+		console.error('Ошибка при получении сообщений мультимедийной группы:', error);
+		return [];
+	}
+}
+//End function////////////////////////////////////
+
+bot.command('delete', async (ctx) => {
+	const messageText = ctx.message.text;
+	const parts = messageText.split(' ');
+	
+	if (parts.length !== 2) {
+		return ctx.reply('Неверный формат команды. Используйте /delete <commentId>');
+	}
+	
+	const commentId = parts[1];
+	
+	try {
+		const commentsCollection = db.collection('comments');
+		const result = await commentsCollection.deleteOne({ _id: new ObjectId(commentId) });
+		
+		if (result.deletedCount === 1) {
+			ctx.reply(`Комментарий с ID ${commentId} успешно удален.`);
+		} else {
+			ctx.reply(`Комментарий с ID ${commentId} не найден.`);
+		}
+	} catch (error) {
+		console.error('Ошибка при удалении комментария:', error);
+		ctx.reply('Произошла ошибка при удалении комментария.');
+	}
+});
 
 bot.command('alarm', async (ctx) => {
 	const text = ctx.message.text.split(' ').slice(1).join(' ');
@@ -106,28 +269,27 @@ bot.on('chat_join_request', async (ctx) => {
 	await sendMessageAdminChat(adminChatId, replyRequest, {message_thread_id: lampThreadId, parse_mode: 'HTML'});
 });
 
+bot.on(['photo', 'video'], async (ctx) => {
+	if (ctx.message.caption && hasMediaHashtag(ctx.message.caption)) {
+		if (ctx.message.media_group_id) {
+			const messages = await getMediaGroupMessages(ctx, ctx.message.media_group_id);
+			await handleMediaGroup(ctx, messages);
+		} else {
+			await handleSingleMessage(ctx);
+		}
+	}
+});
+
 bot.on('message', async (ctx) => {
-	let messageMedia = ''
-	let replyMessageMedia = ''
-	
-	function filterMediaMessage(text) {
-		if (text) {
-			const splitText = text.split(/[\s\n]+/)
-			messageMedia = splitText.filter(word => word === '#media' || word === '#медиа').toString();
+	const replyMessage = ctx.message.reply_to_message;
+	if (replyMessage && hasMediaHashtag(ctx.message.text)) {
+		if (replyMessage.media_group_id) {
+			const messages = await getMediaGroupMessages(ctx, replyMessage.media_group_id);
+			await handleMediaGroup(ctx, messages);
+		} else {
+			await handleSingleMessage(ctx);
 		}
 	}
-	
-	function replyFilterMediaMessage(text) {
-		
-		if (text) {
-			const splitText = text.split(/[\s\n]+/)
-			replyMessageMedia = splitText.filter(word => word === '#media' || word === '#медиа').toString();
-		}
-	}
-	
-	filterMediaMessage(ctx.message.caption)
-	replyFilterMediaMessage(ctx.message.text)
-	
 	if (ctx.message.chat.type === "private") {
 		if (ctx.message.photo) {
 			const answer1 = `Ответ от пользователя <a href="tg://user?id=${ctx.message.from.id}">${ctx.message.from.first_name} ${ctx.message.from.last_name ? ctx.message.from.last_name : ""}</a>: `;
@@ -138,45 +300,6 @@ bot.on('message', async (ctx) => {
 			await sendMessageAdminChat(adminChatId, answer2, {message_thread_id: lampThreadId, parse_mode: 'HTML'});
 		}
 	}
-	if (messageMedia === '#media' || messageMedia === '#медиа') {
-		
-		const chatUserName = ctx.message.chat.username;
-		const sourceChatId = ctx.message.chat.id;
-		const destinationChatId = -1001405911884;
-		const messageId = ctx.message.message_id;
-		const messageThreadId = ctx.message.message_thread_id;
-		
-		
-		await ctx.telegram.forwardMessage(destinationChatId, sourceChatId, messageId, {message_thread_id: 327902})
-				.catch((error) => {
-					console.log(error)
-				});
-		await ctx.telegram.sendMessage(destinationChatId, `https://t.me/${chatUserName}/${messageThreadId}/${messageId}`, {message_thread_id: 327902})
-				.catch((error) => {
-					console.log(error)
-				});
-	}
-	
-	if (replyMessageMedia === '#media' || replyMessageMedia === '#медиа') {
-		
-		if (ctx.message.reply_to_message.photo || ctx.message.reply_to_message.video) {
-			const chatUserName = ctx.message.reply_to_message.chat.username;
-			const sourceChatId = ctx.message.reply_to_message.chat.id;
-			const destinationChatId = -1001405911884;
-			const messageId = ctx.message.reply_to_message.message_id;
-			const messageThreadId = ctx.message.reply_to_message.message_thread_id;
-			
-			await ctx.telegram.forwardMessage(destinationChatId, sourceChatId, messageId, {message_thread_id: 327902})
-					.catch((error) => {
-						console.log(error)
-					});
-			await ctx.telegram.sendMessage(destinationChatId, `https://t.me/${chatUserName}/${messageThreadId}/${messageId}`, {message_thread_id: 327902})
-					.catch((error) => {
-						console.log(error)
-					});
-		}
-	}
-	
 });
 
 bot.launch();
