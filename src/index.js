@@ -11,8 +11,8 @@ require("dotenv").config();
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 const mongoUrl = 'mongodb://localhost:27017';
 
-const adminChatId = -1001959551535
-const lampThreadId = 2
+const adminChatId = -1001295808191
+const lampThreadId = 17137
 const mediaThreadId = 327902
 const monoPiterChatId = -1001405911884
 const urlComments = 'http://192.168.1.101:5173?mediaId='
