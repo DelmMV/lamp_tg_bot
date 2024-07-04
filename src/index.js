@@ -13,8 +13,8 @@ const mongoUrl = 'mongodb://localhost:27017';
 
 const adminChatId = -1001295808191
 const lampThreadId = 17137
-const mediaThreadId = 2
-const monoPiterChatId = -1001959551535
+const mediaThreadId = 327902
+const monoPiterChatId = -1001405911884
 const urlComments = 'http://192.168.1.101:5173?mediaId='
 
 const client = new MongoClient(mongoUrl);
