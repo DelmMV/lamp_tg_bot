@@ -157,7 +157,7 @@ async function getMediaGroupMessages(ctx, media_group_id) {
 		const messages = await ctx.telegram.getUpdates({
 			allowed_updates: ['message'],
 			limit: 50
-		}).then(res => res.map(update => console.log(update) || update.message.text?update.message.reply_to_message:update.message)
+		}).then(res => res.map(update => update.message.text?update.message.reply_to_message:update.message)
 				.filter(message => message.media_group_id === media_group_id));
 		return messages;
 	} catch (error) {
