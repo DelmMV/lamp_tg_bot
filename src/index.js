@@ -11,8 +11,8 @@ require("dotenv").config();
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 const mongoUrl = 'mongodb://localhost:27017';
 
-const adminChatId = -1001295808191
-const lampThreadId = 17137
+const adminChatId = -1001959551535
+const lampThreadId = 2
 const mediaThreadId = 327902
 const monoPiterChatId = -1001405911884
 const urlComments = 'http://192.168.1.101:5173?mediaId='
@@ -278,6 +278,13 @@ bot.on(['photo', 'video'], async (ctx) => {
 			await handleSingleMessage(ctx);
 		}
 	}
+	if (ctx.message.chat.type === "private") {
+		if (ctx.message.photo) {
+			const answer1 = `Ответ от пользователя <a href="tg://user?id=${ctx.message.from.id}">${ctx.message.from.first_name} ${ctx.message.from.last_name ? ctx.message.from.last_name : ""}</a>: `;
+			await sendMessageAdminChat(adminChatId, answer1, {message_thread_id: lampThreadId, parse_mode: 'HTML'});
+			await sendMessageAdminChatPhoto(adminChatId, ctx.message, {message_thread_id: lampThreadId});
+		}
+	}
 });
 
 bot.on('message', async (ctx) => {
@@ -290,17 +297,17 @@ bot.on('message', async (ctx) => {
 			await handleSingleMessage(ctx);
 		}
 	}
+	
 	if (ctx.message.chat.type === "private") {
-		if (ctx.message.photo) {
-			const answer1 = `Ответ от пользователя <a href="tg://user?id=${ctx.message.from.id}">${ctx.message.from.first_name} ${ctx.message.from.last_name ? ctx.message.from.last_name : ""}</a>: `;
-			await sendMessageAdminChat(adminChatId, answer1, {message_thread_id: lampThreadId, parse_mode: 'HTML'});
-			await sendMessageAdminChatPhoto(adminChatId, ctx.message, {message_thread_id: lampThreadId});
-		} else if (ctx.message.text && ctx.message.chat.type === "private") {
+			if (ctx.message.text && ctx.message.chat.type === "private") {
 			const answer2 = `Ответ от пользователя <a href="tg://user?id=${ctx.message.from.id}">${ctx.message.from.first_name} ${ctx.message.from.last_name ? ctx.message.from.last_name : ""}</a>: ${ctx.message.text}`;
-			await sendMessageAdminChat(adminChatId, answer2, {message_thread_id: lampThreadId, parse_mode: 'HTML'});
+			await sendMessageAdminChat(adminChatId, answer2, {
+				caption: ctx.message.caption,
+				message_thread_id: lampThreadId,
+				parse_mode: 'HTML'
+			});
 		}
 	}
 });
-
 bot.launch();
 
