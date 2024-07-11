@@ -15,7 +15,7 @@ const adminChatId = -1001295808191
 const lampThreadId = 17137
 const mediaThreadId = 327902
 const monoPiterChatId = -1001405911884
-const urlComments = 'http://192.168.1.101:5173?mediaId='
+const urlComments = process.env.URL_COMMENTS
 
 const client = new MongoClient(mongoUrl);
 let db;
@@ -170,25 +170,26 @@ async function getMediaGroupMessages(ctx, media_group_id) {
 bot.command('delete', async (ctx) => {
 	const messageText = ctx.message.text;
 	const parts = messageText.split(' ');
-	
-	if (parts.length !== 2) {
-		return ctx.reply('Неверный формат команды. Используйте /delete <commentId>');
-	}
-	
-	const commentId = parts[1];
-	
-	try {
-		const commentsCollection = db.collection('comments');
-		const result = await commentsCollection.deleteOne({ _id: new ObjectId(commentId) });
-		
-		if (result.deletedCount === 1) {
-			ctx.reply(`Комментарий с ID ${commentId} успешно удален.`);
-		} else {
-			ctx.reply(`Комментарий с ID ${commentId} не найден.`);
+	if(ctx.message.chat.id ===  adminChatId) {
+		if (parts.length !== 2) {
+			return ctx.reply('Неверный формат команды. Используйте /delete <commentId>');
 		}
-	} catch (error) {
-		console.error('Ошибка при удалении комментария:', error);
-		ctx.reply('Произошла ошибка при удалении комментария.');
+		
+		const commentId = parts[1];
+		
+		try {
+			const commentsCollection = db.collection('comments');
+			const result = await commentsCollection.deleteOne({ _id: new ObjectId(commentId) });
+			
+			if (result.deletedCount === 1) {
+				ctx.reply(`Комментарий с ID ${commentId} успешно удален.`);
+			} else {
+				ctx.reply(`Комментарий с ID ${commentId} не найден.`);
+			}
+		} catch (error) {
+			console.error('Ошибка при удалении комментария:', error);
+			ctx.reply('Произошла ошибка при удалении комментария.');
+		}
 	}
 });
 
@@ -231,17 +232,17 @@ bot.on('new_chat_members', async (ctx) => {
 	const answer = `
   ${ctx.message.new_chat_member.first_name} ${ctx.message.new_chat_member.last_name ? ctx.message.new_chat_member.last_name : ""}, добро пожаловать в наш чат!
   `;
-	
-	if (ctx.message.from.first_name !== ctx.message.new_chat_member.first_name) {
-		await sendMessageAdminChat(adminChatId, replyRequestInvite, {message_thread_id: lampThreadId, parse_mode: 'HTML'});
-	} else {
-		await sendMessageAdminChat(adminChatId, replyRequest, {message_thread_id: lampThreadId, parse_mode: 'HTML'});
-	}
-	console.log(`${ctx.message.new_chat_member.id}
+	if(ctx.message.chat.id === monoPiterChatId) {
+		if (ctx.message.from.first_name !== ctx.message.new_chat_member.first_name) {
+			await sendMessageAdminChat(adminChatId, replyRequestInvite, {message_thread_id: lampThreadId, parse_mode: 'HTML'});
+		} else {
+			await sendMessageAdminChat(adminChatId, replyRequest, {message_thread_id: lampThreadId, parse_mode: 'HTML'});
+		}
+		console.log(`${ctx.message.new_chat_member.id}
 								${ctx.message.chat.id}
 								${ctx.from.id}`)
-	await sendMessageUser(ctx.from.id, answer);
-	
+		await sendMessageUser(ctx.from.id, answer);
+	}
 });
 
 bot.on('chat_join_request', async (ctx) => {
