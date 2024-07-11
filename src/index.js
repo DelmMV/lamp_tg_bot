@@ -265,7 +265,7 @@ bot.on('chat_join_request', async (ctx) => {
 В ожидании одобрения, предлагаю ознакомиться с правилами/ценностями нашего сообщества: https://t.me/eucriders/287907/403321
 Спасибо за понимание!
   `;
-	if(ctx.message.chat.id === monoPiterChatId) {
+	if(ctx.chatJoinRequest.chat.id === monoPiterChatId) {
 	await sendMessageUser(ctx.chatJoinRequest.from.id, answer);
 	await sendMessageAdminChat(adminChatId, replyRequest, {message_thread_id: lampThreadId, parse_mode: 'HTML'});
 	}
