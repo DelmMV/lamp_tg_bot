@@ -80,17 +80,17 @@ async function handleMediaGroup(ctx, messages) {
 		if (media.length > 0) {
 			await ctx.telegram.sendMediaGroup(monoPiterChatId, media, { message_thread_id: mediaThreadId });
 			await ctx.telegram.sendMessage(monoPiterChatId, `https://t.me/${chatUserName}/${messageThreadId}/${messageId}`, {
-				message_thread_id: mediaThreadId,
-				reply_markup: {
-					inline_keyboard: [
-						[
-							{
-								text: 'Прокомментировать',
-								url: `${urlComments}${result.insertedId}`
-							}
-						]
-					]
-				}
+				message_thread_id: mediaThreadId
+				// reply_markup: {
+				// 	inline_keyboard: [
+				// 		[
+				// 			{
+				// 				text: 'Прокомментировать',
+				// 				url: `${urlComments}${result.insertedId}`
+				// 			}
+				// 		]
+				// 	]
+				// }
 			});
 		}
 	} catch (error) {
@@ -114,32 +114,32 @@ async function handleSingleMessage(ctx) {
 					ctx.message.text ? ctx.message.reply_to_message.photo.length - 1 : ctx.message.photo.length - 1
 					].file_id, {
 				message_thread_id: mediaThreadId,
-				caption: `https://t.me/${chatUserName}/${messageThreadId}/${messageId}`,
-				reply_markup: {
-					inline_keyboard: [
-						[
-							{
-								text: 'Прокомментировать',
-								url: `${urlComments}${result.insertedId}`
-							}
-						]
-					]
-				}
+				caption: `https://t.me/${chatUserName}/${messageThreadId}/${messageId}`
+				// reply_markup: {
+				// 	inline_keyboard: [
+				// 		[
+				// 			{
+				// 				text: 'Прокомментировать',
+				// 				url: `${urlComments}${result.insertedId}`
+				// 			}
+				// 		]
+				// 	]
+				// }
 			});
 		} else if (ctx.message.video) {
 			await ctx.telegram.sendVideo(monoPiterChatId, ctx.message.video.file_id, {
 				message_thread_id: mediaThreadId,
-				caption: `https://t.me/${chatUserName}/${messageThreadId}/${messageId}`,
-				reply_markup: {
-					inline_keyboard: [
-						[
-							{
-								text: 'Прокомментировать',
-								url: `${urlComments}${result.insertedId}`
-							}
-						]
-					]
-				}
+				caption: `https://t.me/${chatUserName}/${messageThreadId}/${messageId}`
+				// reply_markup: {
+				// 	inline_keyboard: [
+				// 		[
+				// 			{
+				// 				text: 'Прокомментировать',
+				// 				url: `${urlComments}${result.insertedId}`
+				// 			}
+				// 		]
+				// 	]
+				// }
 			});
 		}
 	} catch (error) {
