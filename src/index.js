@@ -114,7 +114,10 @@ async function handleSingleMessage(ctx) {
 					ctx.message.text ? ctx.message.reply_to_message.photo.length - 1 : ctx.message.photo.length - 1
 					].file_id, {
 				message_thread_id: mediaThreadId,
-				caption: `https://t.me/${chatUserName}/${messageThreadId}/${messageId}`,
+				caption: `
+				${ctx.message.caption}
+				https://t.me/${chatUserName}/${messageThreadId}/${messageId}
+				`,
 				reply_markup: {
 					inline_keyboard: [
 						[
@@ -229,9 +232,7 @@ bot.on('new_chat_members', async (ctx) => {
 	const replyRequestInvite = `
     <a href="tg://user?id=${ctx.message.from.id}">${ctx.message.from.first_name} ${ctx.message.from.last_name ? ctx.message.from.last_name : ""}</a> принял в группу <a href="tg://user?id=${ctx.message.new_chat_member.id}">${ctx.message.new_chat_member.first_name} ${ctx.message.new_chat_member.last_name ? ctx.message.new_chat_member.last_name : ""}</a>`
 	
-	const answer = `
-  ${ctx.message.new_chat_member.first_name} ${ctx.message.new_chat_member.last_name ? ctx.message.new_chat_member.last_name : ""}, добро пожаловать в наш чат!
-  `;
+	const answer = `${ctx.message.new_chat_member.first_name}${ctx.message.new_chat_member.last_name ? ctx.message.new_chat_member.last_name : ""}, добро пожаловать в наш чат!`;
 	if(ctx.message.chat.id === monoPiterChatId) {
 		if (ctx.message.from.first_name !== ctx.message.new_chat_member.first_name) {
 			await sendMessageAdminChat(adminChatId, replyRequestInvite, {message_thread_id: lampThreadId, parse_mode: 'HTML'});
