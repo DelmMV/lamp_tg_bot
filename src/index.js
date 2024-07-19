@@ -17,6 +17,24 @@ const mediaThreadId = 327902
 const monoPiterChatId = -1001405911884
 const urlComments = process.env.URL_COMMENTS
 
+const getRandomKaomoji = () => {
+	const kaomojis = [
+		"(* ^ ω ^)", "(´ ∀ ` )", "(o^▽^o)", "(⌒▽⌒)☆", "ヽ(・∀・)ﾉ",
+		"(´｡• ω •｡`)", "(o･ω･o)", "(＠＾◡＾)", "(^人^)", "(o´▽`o)",
+		"( ´ ω ` )", "(((o(°▽°)o)))", "(´• ω •`)", "(＾▽＾)", "╰(▔∀▔)╯",
+		"(─‿‿─)", "(✯◡✯)", "(◕‿◕)", "(⌒‿⌒)", "＼(≧▽≦)／",
+		"(*°▽°*)", "٩(｡•́‿•̀｡)۶", "(´｡• ᵕ •｡`)", "( ´ ▽ ` )", "ヽ(>∀<☆)ノ",
+		"o(≧▽≦)o", "＼(￣▽￣)／", "(*¯︶¯*)", "(o˘◡˘o)", "\\(★ω★)/",
+		"(╯✧▽✧)╯", "o(>ω<)o", "( ‾́ ◡ ‾́ )", "(ﾉ´ヮ`)ﾉ*: ･ﾟ", "(๑˘︶˘๑)",
+		"( ˙꒳˙ )", "(´･ᴗ･ ` )", "(ﾉ◕ヮ◕)ﾉ*:･ﾟ✧"
+	];
+	
+	const randomIndex = Math.floor(Math.random() * kaomojis.length);
+	return kaomojis[randomIndex];
+};
+
+
+
 const client = new MongoClient(mongoUrl);
 let db;
 async function main() {
@@ -107,7 +125,6 @@ async function handleSingleMessage(ctx) {
 		const chatUserName = ctx.message.chat.username;
 		const messageId = ctx.message.message_id;
 		const messageThreadId = ctx.message.message_thread_id;
-		
 		const ctxMessage = ctx.message.text ? ctx.message.reply_to_message.photo : ctx.message.photo
 		if (ctxMessage) {
 			await ctx.telegram.sendPhoto(monoPiterChatId, ctxMessage[
@@ -115,7 +132,8 @@ async function handleSingleMessage(ctx) {
 					].file_id, {
 				message_thread_id: mediaThreadId,
 				caption: `
-				${ctx.message.caption}
+				${getRandomKaomoji()}
+				${ctx.message.caption? ctx.message.caption : ctx.message.text}
 				https://t.me/${chatUserName}/${messageThreadId}/${messageId}
 				`,
 				reply_markup: {
