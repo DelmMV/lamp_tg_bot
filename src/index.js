@@ -275,10 +275,10 @@ bot.on('message', async (ctx) => {
 	try {
 		if (containsForbiddenWords(messageText)) {
 			await ctx.reply('Ваше сообщение содержит не допустимые слова. Пожалуйста соблюдайте культуру общения нашего сообщества.', {reply_to_message_id: ctx.message.message_id});
-			await sendTelegramMessage(ADMIN_CHAT_ID, 'Обнаружена ненормативная лексика', {
-				message_thread_id: LAMP_THREAD_ID,
-				reply_to_message_id: ctx.message.message_id
-			});
+			// await sendTelegramMessage(ADMIN_CHAT_ID, 'Обнаружена ненормативная лексика', {
+			// 	message_thread_id: LAMP_THREAD_ID,
+			// 	reply_to_message_id: ctx.message.message_id
+			// });
 		}
 	} catch (error) {
 		console.error('Ошибка при обработке сообщения:', error);
