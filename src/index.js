@@ -1,5 +1,6 @@
 const { Telegraf } = require("telegraf");
 const { MongoClient, ObjectId } = require('mongodb');
+const russianWordsBan = require("./words.json");
 require("dotenv").config();
 
 //
@@ -14,10 +15,10 @@ require("dotenv").config();
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const MONGO_URL = 'mongodb://localhost:27017';
 const DB_NAME = 'telegramBot';
-const ADMIN_CHAT_ID = -1001295808191;
-const LAMP_THREAD_ID = 17137;
-const MEDIA_THREAD_ID = 327902;
-const MONO_PITER_CHAT_ID = -1001405911884;
+const ADMIN_CHAT_ID = process.env.ADMIN_CHAT;
+const MONO_PITER_CHAT_ID = process.env.MONOPITER_CHAT;
+const LAMP_THREAD_ID = process.env.MESSAGE_THREAD_ID_ADMIN_CHAT;
+const MEDIA_THREAD_ID = process.env.MESSAGE_THREAD_ID_MONOPITER_CHAT;
 const URL_COMMENTS = process.env.URL_COMMENTS;
 
 // Initialize bot and database connection
@@ -37,6 +38,13 @@ const KAOMOJIS = [
 ];
 
 // Helper Functions
+const bannedWords = russianWordsBan.russianWordsBan.map(entry => entry.word);
+
+function containsForbiddenWords(text) {
+	const lowerCaseText = text.toLowerCase();
+	return bannedWords.some(word => lowerCaseText.includes(word));
+}
+
 const getRandomKaomoji = () => KAOMOJIS[Math.floor(Math.random() * KAOMOJIS.length)];
 
 const sendTelegramMessage = async (chatId, message, options = {}) => {
@@ -260,7 +268,14 @@ bot.on(['photo', 'video'], async (ctx) => {
 });
 
 bot.on('message', async (ctx) => {
+	const messageText = ctx.message.text;
 	const replyMessage = ctx.message.reply_to_message;
+	
+	if (containsForbiddenWords(messageText)) {
+		await ctx.reply('Ваше сообщение содержит запрещенные слова. Пожалуйста соблюдайте культуру общения нашего сообщества.', { reply_to_message_id: ctx.message.message_id });
+		await sendTelegramMessage(ADMIN_CHAT_ID, 'Обнаружена ненормативная лексика', { message_thread_id: LAMP_THREAD_ID, reply_to_message_id: ctx.message.message_id });
+	}
+	
 	if (replyMessage && hasMediaHashtag(ctx.message.text)) {
 		if (replyMessage.media_group_id) {
 			const messages = await ctx.telegram.getUpdates({
