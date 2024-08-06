@@ -15,10 +15,10 @@ require("dotenv").config();
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const MONGO_URL = 'mongodb://localhost:27017';
 const DB_NAME = 'telegramBot';
-const ADMIN_CHAT_ID = process.env.ADMIN_CHAT;
-const MONO_PITER_CHAT_ID = process.env.MONOPITER_CHAT;
-const LAMP_THREAD_ID = process.env.MESSAGE_THREAD_ID_ADMIN_CHAT;
-const MEDIA_THREAD_ID = process.env.MESSAGE_THREAD_ID_MONOPITER_CHAT;
+const ADMIN_CHAT_ID = parseInt(process.env.ADMIN_CHAT);
+const MONO_PITER_CHAT_ID = parseInt(process.env.MONOPITER_CHAT);
+const LAMP_THREAD_ID = parseInt(process.env.MESSAGE_THREAD_ID_ADMIN_CHAT);
+const MEDIA_THREAD_ID = parseInt(process.env.MESSAGE_THREAD_ID_MONOPITER_CHAT);
 const URL_COMMENTS = process.env.URL_COMMENTS;
 
 // Initialize bot and database connection
@@ -210,6 +210,7 @@ bot.on('new_chat_members', async (ctx) => {
 			: `<a href="tg://user?id=${from.id}">${from.first_name} ${from.last_name || ""}</a> принят(а) в группу`;
 	
 	if (ctx.message.chat.id === MONO_PITER_CHAT_ID) {
+		console.log(`add new user  ${new_chat_member.first_name}`)
 		await sendTelegramMessage(ADMIN_CHAT_ID, message, { message_thread_id: LAMP_THREAD_ID, parse_mode: 'HTML' });
 		await sendTelegramMessage(from.id, `${new_chat_member.first_name}${new_chat_member.last_name || ""}, добро пожаловать в наш чат!`);
 	}
@@ -239,7 +240,7 @@ bot.on('chat_join_request', async (ctx) => {
     В ожидании одобрения, предлагаю ознакомиться с правилами/ценностями нашего сообщества: https://t.me/eucriders/287907/403321
     Спасибо за понимание!
   `;
-	
+	console.log(`new request  ${from.first_name}`)
 	await sendTelegramMessage(from.id, userMessage);
 	await sendTelegramMessage(ADMIN_CHAT_ID, adminMessage, { message_thread_id: LAMP_THREAD_ID, parse_mode: 'HTML' });
 });
@@ -270,12 +271,18 @@ bot.on(['photo', 'video'], async (ctx) => {
 bot.on('message', async (ctx) => {
 	const messageText = ctx.message.text;
 	const replyMessage = ctx.message.reply_to_message;
-	
-	if (containsForbiddenWords(messageText)) {
-		await ctx.reply('Ваше сообщение содержит запрещенные слова. Пожалуйста соблюдайте культуру общения нашего сообщества.', { reply_to_message_id: ctx.message.message_id });
-		await sendTelegramMessage(ADMIN_CHAT_ID, 'Обнаружена ненормативная лексика', { message_thread_id: LAMP_THREAD_ID, reply_to_message_id: ctx.message.message_id });
+	if (!messageText) return;
+	try {
+		if (containsForbiddenWords(messageText)) {
+			await ctx.reply('Ваше сообщение содержит не допустимые слова. Пожалуйста соблюдайте культуру общения нашего сообщества.', {reply_to_message_id: ctx.message.message_id});
+			await sendTelegramMessage(ADMIN_CHAT_ID, 'Обнаружена ненормативная лексика', {
+				message_thread_id: LAMP_THREAD_ID,
+				reply_to_message_id: ctx.message.message_id
+			});
+		}
+	} catch (error) {
+		console.error('Ошибка при обработке сообщения:', error);
 	}
-	
 	if (replyMessage && hasMediaHashtag(ctx.message.text)) {
 		if (replyMessage.media_group_id) {
 			const messages = await ctx.telegram.getUpdates({
