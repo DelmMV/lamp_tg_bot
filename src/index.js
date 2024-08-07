@@ -40,24 +40,40 @@ const KAOMOJIS = [
 // Helper Functions
 const bannedWords = russianWordsBan.russianWordsBan.map(entry => entry.word);
 
+const similarChars = {
+	'а': 'a', 'в': 'b', 'с': 'c', 'е': 'e', 'н': 'h',
+	'к': 'k', 'м': 'm', 'о': 'o', 'р': 'p', 'т': 't',
+	'х': 'x', 'у': 'y',
+};
+
+function createRegexPattern(word) {
+	return word.split('').map(char => {
+		if (char in similarChars) {
+			return `[${char}${similarChars[char]}]`;
+		} else if (Object.values(similarChars).includes(char)) {
+			const cyrillicChar = Object.keys(similarChars).find(key => similarChars[key] === char);
+			return `[${char}${cyrillicChar}]`;
+		}
+		return char;
+	}).join('[.\\s]*');
+}
+
 function containsForbiddenWords(text) {
 	if (typeof text !== 'string') {
-		console.error('Expected text to be a string, but got:', typeof text);
 		return false;
 	}
 	
 	const lowerCaseText = text.toLowerCase();
-	console.log('Checking text:', lowerCaseText);
 	
 	for (const word of bannedWords) {
-		// Проверка на возможные вариации написания (например, с точками между буквами)
-		const variantRegex = new RegExp(`(^|[^а-яё])${word.split('').join('[.\\s]*')}($|[^а-яё])`, 'i');
+		const pattern = createRegexPattern(word);
+		const regex = new RegExp(`(^|[^а-яёa-z])${pattern}($|[^а-яёa-z])`, 'i');
 		
-		if (variantRegex.test(lowerCaseText)) {
-			console.log(`Found banned word variant2: ${word}`);
+		if (regex.test(lowerCaseText)) {
 			return true;
 		}
 	}
+	
 	return false;
 }
 
@@ -298,7 +314,6 @@ bot.on(['photo', 'video'], async (ctx) => {
 bot.on('message', async (ctx) => {
 	const messageText = ctx.message.text;
 	const replyMessage = ctx.message.reply_to_message;
-	console.log(containsForbiddenWords(messageText))
 	
 	if (!messageText) return;
 	try {
