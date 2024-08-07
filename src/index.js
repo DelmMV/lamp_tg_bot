@@ -41,8 +41,32 @@ const KAOMOJIS = [
 const bannedWords = russianWordsBan.russianWordsBan.map(entry => entry.word);
 
 function containsForbiddenWords(text) {
+	if (typeof text !== 'string') {
+		console.error('Expected text to be a string, but got:', typeof text);
+		return false;
+	}
+	
 	const lowerCaseText = text.toLowerCase();
-	return bannedWords.some(word => lowerCaseText.includes(word));
+	console.log('Checking text:', lowerCaseText);
+	
+	for (const word of bannedWords) {
+		// Создаем более гибкое регулярное выражение
+		const regex = new RegExp(`(^|[^а-яё])${word}($|[^а-яё])`, 'i');
+		
+		if (regex.test(lowerCaseText)) {
+			console.log(`Found banned word: ${word}`);
+			return true;
+		}
+		
+		// Проверка на возможные вариации написания (например, с точками между буквами)
+		const variantRegex = new RegExp(`(^|[^а-яё])${word.split('').join('[.\\s]*')}($|[^а-яё])`, 'i');
+		
+		if (variantRegex.test(lowerCaseText)) {
+			console.log(`Found banned word variant2: ${word}`);
+			return true;
+		}
+	}
+	return false;
 }
 
 const getRandomKaomoji = () => KAOMOJIS[Math.floor(Math.random() * KAOMOJIS.length)];
@@ -245,6 +269,17 @@ bot.on('chat_join_request', async (ctx) => {
 	await sendTelegramMessage(ADMIN_CHAT_ID, adminMessage, { message_thread_id: LAMP_THREAD_ID, parse_mode: 'HTML' });
 });
 
+// bot.on('location', async (ctx) => {
+// 	console.log(ctx.update.message.location)
+// })
+//
+// bot.on('edited_message', async (ctx) => {
+// 	if (ctx.editedMessage.location) {
+// 		console.log(ctx.editedMessage.location)
+// 	}
+//
+// 	})
+
 bot.on(['photo', 'video'], async (ctx) => {
 	if (ctx.message.caption && hasMediaHashtag(ctx.message.caption)) {
 		if (ctx.message.media_group_id) {
@@ -271,9 +306,12 @@ bot.on(['photo', 'video'], async (ctx) => {
 bot.on('message', async (ctx) => {
 	const messageText = ctx.message.text;
 	const replyMessage = ctx.message.reply_to_message;
+	console.log(containsForbiddenWords(messageText))
+	
 	if (!messageText) return;
 	try {
 		if (containsForbiddenWords(messageText)) {
+			console.log(containsForbiddenWords(messageText))
 			await ctx.reply('Ваше сообщение содержит не допустимые слова. Пожалуйста соблюдайте культуру общения нашего сообщества.', {reply_to_message_id: ctx.message.message_id});
 			// await sendTelegramMessage(ADMIN_CHAT_ID, 'Обнаружена ненормативная лексика', {
 			// 	message_thread_id: LAMP_THREAD_ID,
