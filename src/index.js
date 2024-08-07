@@ -50,14 +50,6 @@ function containsForbiddenWords(text) {
 	console.log('Checking text:', lowerCaseText);
 	
 	for (const word of bannedWords) {
-		// Создаем более гибкое регулярное выражение
-		const regex = new RegExp(`(^|[^а-яё])${word}($|[^а-яё])`, 'i');
-		
-		if (regex.test(lowerCaseText)) {
-			console.log(`Found banned word: ${word}`);
-			return true;
-		}
-		
 		// Проверка на возможные вариации написания (например, с точками между буквами)
 		const variantRegex = new RegExp(`(^|[^а-яё])${word.split('').join('[.\\s]*')}($|[^а-яё])`, 'i');
 		
