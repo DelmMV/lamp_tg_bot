@@ -1,16 +1,17 @@
 const { Telegraf } = require("telegraf");
 const { MongoClient, ObjectId } = require('mongodb');
 const russianWordsBan = require("./words.json");
-require("dotenv").config();
+const haversine = require('haversine-distance');
 
+require("dotenv").config();
 //
 // //Тестовая -1001959551535  message_thread_id: 2
 // //id чата админов -1001295808191 message_thread_id: 17137
 //
 // //thread media  message_thread_id: 327902
 // //id chat монопитер -1001405911884
-//
 
+//
 // Constants
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const MONGO_URL = 'mongodb://localhost:27017';
@@ -20,6 +21,9 @@ const MONO_PITER_CHAT_ID = parseInt(process.env.MONOPITER_CHAT);
 const LAMP_THREAD_ID = parseInt(process.env.MESSAGE_THREAD_ID_ADMIN_CHAT);
 const MEDIA_THREAD_ID = parseInt(process.env.MESSAGE_THREAD_ID_MONOPITER_CHAT);
 const URL_COMMENTS = process.env.URL_COMMENTS;
+
+const MIN_DISTANCE_THRESHOLD = 20; // Порог для фильтрации небольших перемещений в метрах
+const MAX_DISTANCE_THRESHOLD = 500; // Порог для начала новой сессии в метрах
 
 // Initialize bot and database connection
 const bot = new Telegraf(BOT_TOKEN);
@@ -103,6 +107,7 @@ const connectToDatabase = async () => {
 		const client = new MongoClient(MONGO_URL);
 		await client.connect();
 		db = client.db(DB_NAME);
+		db = client.db("geolocation_db");
 		console.log("Connected to MongoDB");
 	} catch (error) {
 		console.error("MongoDB connection error:", error);
@@ -277,16 +282,180 @@ bot.on('chat_join_request', async (ctx) => {
 	await sendTelegramMessage(ADMIN_CHAT_ID, adminMessage, { message_thread_id: LAMP_THREAD_ID, parse_mode: 'HTML' });
 });
 
-// bot.on('location', async (ctx) => {
-// 	console.log(ctx.update.message.location)
-// })
-//
-// bot.on('edited_message', async (ctx) => {
-// 	if (ctx.editedMessage.location) {
-// 		console.log(ctx.editedMessage.location)
-// 	}
-//
-// 	})
+bot.on('location', async (ctx) => {
+	const location = ctx.message.location;
+	const userId = ctx.message.from.id;
+	const username = ctx.message.from.username || `${ctx.message.from.first_name} ${ctx.message.from.last_name}`;
+	const timestamp = ctx.message.date;
+	
+	const entry = {
+		userId,
+		username,
+		timestamp,
+		latitude: location.latitude,
+		longitude: location.longitude,
+		sessionId: null // Временное значение
+	};
+	
+	const collection = db.collection('locations');
+	const lastLocation = await collection.find({ userId }).sort({ timestamp: -1 }).limit(1).toArray();
+	
+	if (lastLocation.length > 0) {
+		const lastEntry = lastLocation[0];
+		const distance = haversine(
+				{ lat: lastEntry.latitude, lon: lastEntry.longitude },
+				{ lat: entry.latitude, lon: entry.longitude }
+		);
+		
+		if (distance < MIN_DISTANCE_THRESHOLD) {
+			return; // Игнорируем перемещение
+		}
+		
+		if (distance > MAX_DISTANCE_THRESHOLD) {
+			entry.sessionId = lastEntry.sessionId + 1;
+		} else {
+			entry.sessionId = lastEntry.sessionId;
+		}
+	} else {
+		entry.sessionId = 1;
+	}
+	
+	await collection.insertOne(entry);
+	ctx.reply("Location saved!");
+});
+
+
+bot.on('edited_message', async (ctx) => {
+	if (ctx.editedMessage.location) {
+		const location = ctx.editedMessage.location;
+		const userId = ctx.editedMessage.from.id;
+		const timestamp = ctx.editedMessage.edit_date;
+		
+		const entry = {
+			userId,
+			timestamp,
+			latitude: location.latitude,
+			longitude: location.longitude,
+			sessionId: null // Временное значение
+		};
+		
+		const collection = db.collection('locations');
+		const lastLocation = await collection.find({ userId }).sort({ timestamp: -1 }).limit(1).toArray();
+		
+		if (lastLocation.length > 0) {
+			const lastEntry = lastLocation[0];
+			const distance = haversine(
+					{ lat: lastEntry.latitude, lon: lastEntry.longitude },
+					{ lat: entry.latitude, lon: entry.longitude }
+			);
+			
+			// Фильтрация маленьких перемещений
+			if (distance < MIN_DISTANCE_THRESHOLD) {
+				return; // Игнорируем перемещение
+			}
+			
+			// Если расстояние больше определенного порога, начинаем новую сессию
+			if (distance > MAX_DISTANCE_THRESHOLD) {
+				entry.sessionId = lastEntry.sessionId + 1;
+			} else {
+				entry.sessionId = lastEntry.sessionId;
+			}
+		} else {
+			entry.sessionId = 1;
+		}
+		
+		await collection.insertOne(entry);
+	}
+});
+
+async function calculateStats(userId) {
+	const collection = db.collection('locations');
+	const oneWeekAgo = Math.floor(Date.now() / 1000) - 7 * 24 * 3600;
+	const locations = await collection.find({ userId, timestamp: { $gte: oneWeekAgo } }).sort({ sessionId: 1, timestamp: 1 }).toArray();
+	
+	if (locations.length < 2) return { distance: 0, speed: 0 };
+	
+	let totalDistance = 0;
+	let totalTime = 0;
+	let lastSessionId = locations[0].sessionId;
+	
+	for (let i = 1; i < locations.length; i++) {
+		const prev = locations[i - 1];
+		const curr = locations[i];
+		
+		if (curr.sessionId !== lastSessionId) {
+			lastSessionId = curr.sessionId;
+			continue; // Началась новая сессия, пропускаем
+		}
+		
+		const dist = haversine(
+				{ lat: prev.latitude, lon: prev.longitude },
+				{ lat: curr.latitude, lon: curr.longitude }
+		);
+		totalDistance += dist;
+		
+		const timeDiff = curr.timestamp - prev.timestamp;
+		totalTime += timeDiff;
+	}
+	
+	const avgSpeed = (totalDistance / 1000) / (totalTime / 3600); // Средняя скорость в км/ч
+	return { distance: totalDistance / 1000, speed: avgSpeed }; // Пройденное расстояние тоже переводим в километры
+}
+
+
+bot.command('stats', async (ctx) => {
+	const userId = ctx.message.from.id;
+	const stats = await calculateStats(userId);
+	
+	ctx.reply(`За последнюю неделю вы проехали ${stats.distance.toFixed(2)} км со средней скоростью ${stats.speed.toFixed(2)} км/ч.`);
+});
+
+async function getTop10Users() {
+	const collection = db.collection('locations');
+	
+	// Получаем уникальные userId и username из базы данных
+	const uniqueUsers = await collection.aggregate([
+		{
+			$group: {
+				_id: "$userId",
+				username: { $first: "$username" } // Берем первый сохраненный ник для каждого пользователя
+			}
+		}
+	]).toArray();
+	
+	const userDistances = [];
+	
+	// Для каждого уникального пользователя рассчитываем пробег
+	for (const user of uniqueUsers) {
+		const stats = await calculateStats(user._id);
+		userDistances.push({
+			userId: user._id,
+			username: user.username,
+			distance: stats.distance
+		});
+	}
+	
+	// Сортируем пользователей по пройденному расстоянию
+	userDistances.sort((a, b) => b.distance - a.distance);
+	
+	// Берем топ-10 пользователей
+	const top10 = userDistances.slice(0, 10);
+	
+	return top10;
+}
+
+bot.command('top10', async (ctx) => {
+	const top10 = await getTop10Users();
+	
+	let response = "🏆 Топ 10 пользователей по пробегу за неделю:\n\n";
+	
+	top10.forEach((user, index) => {
+		response += `${index + 1}. ${user.username}: ${user.distance.toFixed(2)} км\n`;
+	});
+	
+	ctx.reply(response);
+});
+
 
 bot.on(['photo', 'video'], async (ctx) => {
 	if (ctx.message.caption && hasMediaHashtag(ctx.message.caption)) {
