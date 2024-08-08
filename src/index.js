@@ -314,20 +314,24 @@ bot.on(['photo', 'video'], async (ctx) => {
 bot.on('message', async (ctx) => {
 	const messageText = ctx.message.text;
 	const replyMessage = ctx.message.reply_to_message;
+	const answer = `В <a href="https://t.me/${ctx.message.chat.username}/${ctx.message.message_thread_id}/${ctx.message.message_id}">сообщении</a> от <a href="tg://user?id=${ctx.message.from.id}">${ctx.message.from.first_name} ${ctx.message.from.last_name || ""}</a> обноружены не допустимые слова!`;
 	
 	if (!messageText) return;
-	try {
-		if (containsForbiddenWords(messageText)) {
-			console.log(containsForbiddenWords(messageText))
-			await ctx.reply('Ваше сообщение содержит не допустимые слова. Пожалуйста соблюдайте культуру общения нашего сообщества.', {reply_to_message_id: ctx.message.message_id});
-			// await sendTelegramMessage(ADMIN_CHAT_ID, 'Обнаружена ненормативная лексика', {
-			// 	message_thread_id: LAMP_THREAD_ID,
-			// 	reply_to_message_id: ctx.message.message_id
-			// });
+	
+	if(ctx.message.chat.id === MONO_PITER_CHAT_ID) {
+		try {
+			if (containsForbiddenWords(messageText)) {
+				await ctx.reply('Ваше сообщение содержит не допустимые слова. Пожалуйста соблюдайте культуру общения нашего сообщества.', {reply_to_message_id: ctx.message.message_id});
+				await sendTelegramMessage(ADMIN_CHAT_ID, answer, {
+					message_thread_id: LAMP_THREAD_ID,
+					parse_mode: 'HTML'
+				});
+			}
+		} catch (error) {
+			console.error('Ошибка при обработке сообщения:', error);
 		}
-	} catch (error) {
-		console.error('Ошибка при обработке сообщения:', error);
 	}
+	
 	if (replyMessage && hasMediaHashtag(ctx.message.text)) {
 		if (replyMessage.media_group_id) {
 			const messages = await ctx.telegram.getUpdates({
