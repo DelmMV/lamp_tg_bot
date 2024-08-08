@@ -319,9 +319,7 @@ bot.on('location', async (ctx) => {
 	} else {
 		entry.sessionId = 1;
 	}
-	
 	await collection.insertOne(entry);
-	ctx.reply("Location saved!");
 });
 
 
@@ -330,9 +328,11 @@ bot.on('edited_message', async (ctx) => {
 		const location = ctx.editedMessage.location;
 		const userId = ctx.editedMessage.from.id;
 		const timestamp = ctx.editedMessage.edit_date;
+		const username = ctx.editedMessage.from.username || `${ctx.editedMessage.from.first_name} ${ctx.editedMessage.from.last_name}`;
 		
 		const entry = {
 			userId,
+			username,
 			timestamp,
 			latitude: location.latitude,
 			longitude: location.longitude,
@@ -363,7 +363,6 @@ bot.on('edited_message', async (ctx) => {
 		} else {
 			entry.sessionId = 1;
 		}
-		
 		await collection.insertOne(entry);
 	}
 });
@@ -443,6 +442,7 @@ async function getTop10Users() {
 	
 	return top10;
 }
+
 
 bot.command('top10', async (ctx) => {
 	const top10 = await getTop10Users();
