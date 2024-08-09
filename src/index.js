@@ -20,7 +20,7 @@ const ADMIN_CHAT_ID = parseInt(process.env.ADMIN_CHAT);
 const MONO_PITER_CHAT_ID = parseInt(process.env.MONOPITER_CHAT);
 const LAMP_THREAD_ID = parseInt(process.env.MESSAGE_THREAD_ID_ADMIN_CHAT);
 const MEDIA_THREAD_ID = parseInt(process.env.MESSAGE_THREAD_ID_MONOPITER_CHAT);
-const URL_COMMENTS = process.env.URL_COMMENTS;
+//const URL_COMMENTS = process.env.URL_COMMENTS;
 
 const MIN_DISTANCE_THRESHOLD = 20; // Порог для фильтрации небольших перемещений в метрах
 const MAX_DISTANCE_THRESHOLD = 500; // Порог для начала новой сессии в метрах
@@ -115,15 +115,15 @@ const connectToDatabase = async () => {
 	}
 };
 
-const insertMedia = async (mediaMessage) => {
-	const mediaCollection = db.collection('media');
-	return await mediaCollection.insertOne(mediaMessage);
-};
+// const insertMedia = async (mediaMessage) => {
+// 	const mediaCollection = db.collection('media');
+// 	return await mediaCollection.insertOne(mediaMessage);
+// };
 
 // Message Handlers
 const handleMediaGroup = async (ctx, messages) => {
 	try {
-		const result = await insertMedia(ctx.message);
+		//const result = await insertMedia(ctx.message);
 		
 		const media = messages
 				.map(message => {
@@ -150,9 +150,9 @@ const handleMediaGroup = async (ctx, messages) => {
 					`https://t.me/${ctx.message.chat.username}/${ctx.message.message_thread_id}/${ctx.message.message_id}`,
 					{
 						message_thread_id: MEDIA_THREAD_ID,
-						reply_markup: {
-							inline_keyboard: [[{ text: 'Прокомментировать', url: `${URL_COMMENTS}${result.insertedId}` }]]
-						}
+						// reply_markup: {
+						// 	inline_keyboard: [[{ text: 'Прокомментировать', url: `${URL_COMMENTS}${result.insertedId}` }]]
+						// }
 					}
 			);
 		}
@@ -163,7 +163,7 @@ const handleMediaGroup = async (ctx, messages) => {
 
 const handleSingleMessage = async (ctx) => {
 	try {
-		const result = await insertMedia(ctx.message);
+		//const result = await insertMedia(ctx.message);
 		const { chat: { username }, message_id, message_thread_id, caption, text, photo, video } = ctx.message;
 		
 		const mediaOptions = {
@@ -173,9 +173,9 @@ const handleSingleMessage = async (ctx) => {
         ${caption || text || ''}
         https://t.me/${username}/${message_thread_id}/${message_id}
       `,
-			reply_markup: {
-				inline_keyboard: [[{ text: 'Прокомментировать', url: `${URL_COMMENTS}${result.insertedId}` }]]
-			}
+			// reply_markup: {
+			// 	inline_keyboard: [[{ text: 'Прокомментировать', url: `${URL_COMMENTS}${result.insertedId}` }]]
+			// }
 		};
 		if (photo) {
 			await ctx.telegram.sendPhoto(MONO_PITER_CHAT_ID, photo[photo.length - 1].file_id, mediaOptions);
@@ -438,9 +438,7 @@ async function getTop10Users() {
 	userDistances.sort((a, b) => b.distance - a.distance);
 	
 	// Берем топ-10 пользователей
-	const top10 = userDistances.slice(0, 10);
-	
-	return top10;
+	return userDistances.slice(0, 10);
 }
 
 
