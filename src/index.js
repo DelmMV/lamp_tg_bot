@@ -22,7 +22,7 @@ const LAMP_THREAD_ID = parseInt(process.env.MESSAGE_THREAD_ID_ADMIN_CHAT);
 const MEDIA_THREAD_ID = parseInt(process.env.MESSAGE_THREAD_ID_MONOPITER_CHAT);
 //const URL_COMMENTS = process.env.URL_COMMENTS;
 
-const MIN_DISTANCE_THRESHOLD = 20; // Порог для фильтрации небольших перемещений в метрах
+const MIN_DISTANCE_THRESHOLD = 50; // Порог для фильтрации небольших перемещений в метрах
 const MAX_DISTANCE_THRESHOLD = 500; // Порог для начала новой сессии в метрах
 
 // Initialize bot and database connection
@@ -370,7 +370,9 @@ bot.on('edited_message', async (ctx) => {
 async function calculateStats(userId) {
 	const collection = db.collection('locations');
 	const oneWeekAgo = Math.floor(Date.now() / 1000) - 7 * 24 * 3600;
-	const locations = await collection.find({ userId, timestamp: { $gte: oneWeekAgo } }).sort({ sessionId: 1, timestamp: 1 }).toArray();
+	const locations = await collection.find({ userId, timestamp: { $gte: oneWeekAgo } })
+			.sort({ sessionId: 1, timestamp: 1 })
+			.toArray();
 	
 	if (locations.length < 2) return { distance: 0, speed: 0 };
 	
@@ -394,11 +396,16 @@ async function calculateStats(userId) {
 		totalDistance += dist;
 		
 		const timeDiff = curr.timestamp - prev.timestamp;
-		totalTime += timeDiff;
+		
+		// Фильтрация: исключаем слишком большие промежутки времени, когда пользователь мог остановиться
+		if (timeDiff < 3600) {  // 3600 секунд = 1 час, этот порог можно настроить
+			totalTime += timeDiff;
+		}
 	}
 	
-	const avgSpeed = (totalDistance / 1000) / (totalTime / 3600); // Средняя скорость в км/ч
-	return { distance: totalDistance / 1000, speed: avgSpeed }; // Пройденное расстояние тоже переводим в километры
+	// Если totalTime == 0, это означает, что все точки были слишком далеко друг от друга по времени
+	const avgSpeed = totalTime > 0 ? (totalDistance / 1000) / (totalTime / 3600) : 0; // Средняя скорость в км/ч
+	return { distance: totalDistance / 1000, speed: avgSpeed }; // Пройденное расстояние в км
 }
 
 
