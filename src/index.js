@@ -461,6 +461,93 @@ bot.command('top10', async (ctx) => {
 	ctx.reply(response);
 });
 
+async function calculateWeeklyStats(userId) {
+	const collection = db.collection('locations');
+	
+	// Определяем начало и конец текущей недели
+	const now = new Date();
+	const dayOfWeek = now.getDay(); // 0 = воскресенье, 1 = понедельник, ..., 6 = суббота
+	
+	// Найти дату понедельника текущей недели
+	const monday = new Date(now);
+	monday.setHours(0, 0, 0, 0); // Устанавливаем время на начало дня
+	monday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1)); // Если сегодня воскресенье, отнимаем 6 дней, иначе отнимаем dayOfWeek - 1
+	
+	// Найти дату воскресенья текущей недели
+	const sunday = new Date(monday);
+	sunday.setDate(monday.getDate() + 6);
+	sunday.setHours(23, 59, 59, 999); // Устанавливаем время на конец дня
+	
+	const startTimestamp = Math.floor(monday.getTime() / 1000);
+	const endTimestamp = Math.floor(sunday.getTime() / 1000);
+	
+	// Получаем локации за текущую неделю
+	const locations = await collection.find({
+		userId,
+		timestamp: { $gte: startTimestamp, $lte: endTimestamp }
+	}).sort({ sessionId: 1, timestamp: 1 }).toArray();
+	
+	if (locations.length < 2) return { distance: 0, speed: 0, dailyDistances: [] };
+	
+	let totalDistance = 0;
+	let totalTime = 0;
+	let lastSessionId = locations[0].sessionId;
+	
+	// Создаем массив для хранения дистанций по каждому дню
+	let dailyDistances = new Array(7).fill(0);
+	
+	for (let i = 1; i < locations.length; i++) {
+		const prev = locations[i - 1];
+		const curr = locations[i];
+		
+		if (curr.sessionId !== lastSessionId) {
+			lastSessionId = curr.sessionId;
+			continue; // Началась новая сессия, пропускаем
+		}
+		
+		const dist = haversine(
+				{ lat: prev.latitude, lon: prev.longitude },
+				{ lat: curr.latitude, lon: curr.longitude }
+		);
+		totalDistance += dist;
+		
+		const timeDiff = curr.timestamp - prev.timestamp;
+		
+		// Фильтрация: исключаем слишком большие промежутки времени, когда пользователь мог остановиться
+		if (timeDiff < 3600) {  // 3600 секунд = 1 час
+			totalTime += timeDiff;
+		}
+		
+		// Определяем день недели (0 = воскресенье, ..., 6 = суббота)
+		const dayIndex = new Date(curr.timestamp * 1000).getDay();
+		// Пересчитываем индекс для понедельника = 0, ..., воскресенья = 6
+		const adjustedIndex = (dayIndex + 6) % 7;
+		dailyDistances[adjustedIndex] += dist;
+	}
+	
+	const avgSpeed = totalTime > 0 ? (totalDistance / 1000) / (totalTime / 3600) : 0; // Средняя скорость в км/ч
+	
+	// Преобразуем дневные дистанции в километры
+	dailyDistances = dailyDistances.map(dist => dist / 1000);
+	
+	return { distance: totalDistance / 1000, speed: avgSpeed, dailyDistances };
+}
+
+bot.command('weekstats', async (ctx) => {
+	const userId = ctx.message.from.id;
+	const stats = await calculateWeeklyStats(userId);
+	
+	let response = `На этой неделе вы проехали ${stats.distance.toFixed(2)} км со средней скоростью ${stats.speed.toFixed(2)} км/ч.\n\n`;
+	response += "Пробег по дням недели:\n";
+	
+	const daysOfWeek = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
+	
+	stats.dailyDistances.forEach((distance, index) => {
+		response += `${daysOfWeek[index]}: ${distance.toFixed(2)} км\n`;
+	});
+	
+	ctx.reply(response);
+});
 
 bot.on(['photo', 'video'], async (ctx) => {
 	if (ctx.message.caption && hasMediaHashtag(ctx.message.caption)) {
