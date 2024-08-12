@@ -1,7 +1,6 @@
 const { Telegraf } = require("telegraf");
 const { MongoClient, ObjectId } = require('mongodb');
 const russianWordsBan = require("./words.json");
-const haversine = require('haversine-distance');
 
 require("dotenv").config();
 //
@@ -21,9 +20,6 @@ const MONO_PITER_CHAT_ID = parseInt(process.env.MONOPITER_CHAT);
 const LAMP_THREAD_ID = parseInt(process.env.MESSAGE_THREAD_ID_ADMIN_CHAT);
 const MEDIA_THREAD_ID = parseInt(process.env.MESSAGE_THREAD_ID_MONOPITER_CHAT);
 //const URL_COMMENTS = process.env.URL_COMMENTS;
-
-const MIN_DISTANCE_THRESHOLD = 50; // Порог для фильтрации небольших перемещений в метрах
-const MAX_DISTANCE_THRESHOLD = 500; // Порог для начала новой сессии в метрах
 
 // Initialize bot and database connection
 const bot = new Telegraf(BOT_TOKEN);
@@ -280,91 +276,6 @@ bot.on('chat_join_request', async (ctx) => {
 	console.log(`new request  ${from.first_name}`)
 	await sendTelegramMessage(from.id, userMessage);
 	await sendTelegramMessage(ADMIN_CHAT_ID, adminMessage, { message_thread_id: LAMP_THREAD_ID, parse_mode: 'HTML' });
-});
-
-bot.on('location', async (ctx) => {
-	const location = ctx.message.location;
-	const userId = ctx.message.from.id;
-	const username = ctx.message.from.username || `${ctx.message.from.first_name} ${ctx.message.from.last_name}`;
-	const timestamp = ctx.message.date;
-	
-	const entry = {
-		userId,
-		username,
-		timestamp,
-		latitude: location.latitude,
-		longitude: location.longitude,
-		sessionId: null // Временное значение
-	};
-	
-	const collection = db.collection('locations');
-	const lastLocation = await collection.find({ userId }).sort({ timestamp: -1 }).limit(1).toArray();
-	
-	if (lastLocation.length > 0) {
-		const lastEntry = lastLocation[0];
-		const distance = haversine(
-				{ lat: lastEntry.latitude, lon: lastEntry.longitude },
-				{ lat: entry.latitude, lon: entry.longitude }
-		);
-		
-		if (distance < MIN_DISTANCE_THRESHOLD) {
-			return; // Игнорируем перемещение
-		}
-		
-		if (distance > MAX_DISTANCE_THRESHOLD) {
-			entry.sessionId = lastEntry.sessionId + 1;
-		} else {
-			entry.sessionId = lastEntry.sessionId;
-		}
-	} else {
-		entry.sessionId = 1;
-	}
-	await collection.insertOne(entry);
-});
-
-
-bot.on('edited_message', async (ctx) => {
-	if (ctx.editedMessage.location) {
-		const location = ctx.editedMessage.location;
-		const userId = ctx.editedMessage.from.id;
-		const timestamp = ctx.editedMessage.edit_date;
-		const username = ctx.editedMessage.from.username || `${ctx.editedMessage.from.first_name} ${ctx.editedMessage.from.last_name}`;
-		
-		const entry = {
-			userId,
-			username,
-			timestamp,
-			latitude: location.latitude,
-			longitude: location.longitude,
-			sessionId: null // Временное значение
-		};
-		
-		const collection = db.collection('locations');
-		const lastLocation = await collection.find({ userId }).sort({ timestamp: -1 }).limit(1).toArray();
-		
-		if (lastLocation.length > 0) {
-			const lastEntry = lastLocation[0];
-			const distance = haversine(
-					{ lat: lastEntry.latitude, lon: lastEntry.longitude },
-					{ lat: entry.latitude, lon: entry.longitude }
-			);
-			
-			// Фильтрация маленьких перемещений
-			if (distance < MIN_DISTANCE_THRESHOLD) {
-				return; // Игнорируем перемещение
-			}
-			
-			// Если расстояние больше определенного порога, начинаем новую сессию
-			if (distance > MAX_DISTANCE_THRESHOLD) {
-				entry.sessionId = lastEntry.sessionId + 1;
-			} else {
-				entry.sessionId = lastEntry.sessionId;
-			}
-		} else {
-			entry.sessionId = 1;
-		}
-		await collection.insertOne(entry);
-	}
 });
 
 bot.on(['photo', 'video'], async (ctx) => {
