@@ -305,7 +305,7 @@ bot.on('message', async (ctx) => {
 	const messageText = ctx.message.text;
 	const replyMessage = ctx.message.reply_to_message;
 	const answer = `В <a href="https://t.me/${ctx.message.chat.username}/${ctx.message.message_thread_id}/${ctx.message.message_id}">сообщении</a> от <a href="tg://user?id=${ctx.message.from.id}">${ctx.message.from.first_name} ${ctx.message.from.last_name || ""}</a> обноружены не допустимые слова!`;
-	
+	console.log(ctx.message)
 	if (!messageText) return;
 	
 	if(ctx.message.chat.id === MONO_PITER_CHAT_ID) {
