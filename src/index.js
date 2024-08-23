@@ -310,7 +310,7 @@ bot.on('message', async (ctx) => {
 	if(ctx.message.chat.id === MONO_PITER_CHAT_ID) {
 		try {
 			if (containsForbiddenWords(messageText)) {
-				await ctx.reply('Ваше сообщение содержит не допустимые слова. Пожалуйста соблюдайте культуру общения нашего сообщества.', {reply_to_message_id: ctx.message.message_id});
+				await ctx.reply('Ваше сообщение содержит недопустимые слова. Пожалуйста соблюдайте культуру общения нашего сообщества.', {reply_to_message_id: ctx.message.message_id});
 				await sendTelegramMessage(ADMIN_CHAT_ID, answer, {
 					message_thread_id: LAMP_THREAD_ID,
 					parse_mode: 'HTML'
