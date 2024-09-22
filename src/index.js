@@ -118,43 +118,38 @@ const connectToDatabase = async () => {
 
 // Message Handlers
 const handleMediaGroup = async (ctx, messages) => {
-	try {
-		//const result = await insertMedia(ctx.message);
-		
-		const media = messages
-				.map(message => {
-					if (message.photo) {
-						return {
-							type: 'photo',
-							media: message.photo[message.photo.length - 1].file_id,
-							caption: message.caption || ''
-						};
-					} else if (message.video) {
-						return {
-							type: 'video',
-							media: message.video.file_id,
-							caption: message.caption || '',
-						};
-					}
-					return null;
-				})
-				.filter(Boolean);
-		
-		if (media.length > 0) {
-			await ctx.telegram.sendMediaGroup(MONO_PITER_CHAT_ID, media, { message_thread_id: MEDIA_THREAD_ID });
-			await sendTelegramMessage(MONO_PITER_CHAT_ID,
-					`https://t.me/${ctx.message.chat.username}/${ctx.message.message_thread_id}/${ctx.message.message_id}`,
-					{
-						message_thread_id: MEDIA_THREAD_ID,
-						// reply_markup: {
-						// 	inline_keyboard: [[{ text: 'Прокомментировать', url: `${URL_COMMENTS}${result.insertedId}` }]]
-						// }
-					}
-			);
-		}
-	} catch (error) {
-		console.error('Error handling media group:', error);
-	}
+  try {
+    const media = messages
+      .map(message => {
+        if (message.photo) {
+          return {
+            type: 'photo',
+            media: message.photo[message.photo.length - 1].file_id,
+            caption: message.caption || ''
+          };
+        } else if (message.video) {
+          return {
+            type: 'video',
+            media: message.video.file_id,
+            caption: message.caption || '',
+          };
+        }
+        return null;
+      })
+      .filter(Boolean);
+
+    if (media.length > 0) {
+      await ctx.telegram.sendMediaGroup(MONO_PITER_CHAT_ID, media, { message_thread_id: MEDIA_THREAD_ID });
+      await sendTelegramMessage(MONO_PITER_CHAT_ID,
+        `https://t.me/${ctx.message.chat.username}/${ctx.message.message_thread_id}/${ctx.message.message_id}`,
+        {
+          message_thread_id: MEDIA_THREAD_ID,
+        }
+      );
+    }
+  } catch (error) {
+    console.error('Ошибка при обработке медиа-группы:', error);
+  }
 };
 
 const handleSingleMessage = async (ctx) => {
@@ -285,15 +280,15 @@ bot.on(['photo', 'video'], async (ctx) => {
 				allowed_updates: ['message'],
 				limit: 50
 			}).then(res => res
-					.map(update => update.message.text ? update.message.reply_to_message : update.message)
-					.filter(message => message.media_group_id === ctx.message.media_group_id)
+					.map(update => update.message)
+					.filter(message => message && message.media_group_id === ctx.message.media_group_id)
 			);
 			await handleMediaGroup(ctx, messages);
 		} else {
 			await handleSingleMessage(ctx);
 		}
 	}
-	
+
 	if (ctx.message.chat.type === "private" && ctx.message.photo) {
 		const answer = `Ответ от пользователя <a href="tg://user?id=${ctx.message.from.id}">${ctx.message.from.first_name} ${ctx.message.from.last_name || ""}</a>: `;
 		await sendTelegramMessage(ADMIN_CHAT_ID, answer, { message_thread_id: LAMP_THREAD_ID, parse_mode: 'HTML' });
