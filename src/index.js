@@ -88,11 +88,16 @@ const sendTelegramMessage = async (chatId, message, options = {}) => {
 };
 
 const sendTelegramMedia = async (chatId, content, options = {}) => {
-	try {
-		return await bot.telegram.sendCopy(chatId, content, options);
-	} catch (error) {
-		console.error('Error sending media:', error);
-	}
+    try {
+        return await bot.telegram.sendCopy(chatId, content, options);
+    } catch (error) {
+        console.error('Error sending media:', error);
+        await sendTelegramMessage(
+            ADMIN_CHAT_ID, 
+            `Ошибка отправки медиа: ${error.response?.description || error.message}`,
+            { message_thread_id: LAMP_THREAD_ID }
+        );
+    }
 };
 
 const hasMediaHashtag = (text) => text && (text.includes('#media') || text.includes('#медиа'));
