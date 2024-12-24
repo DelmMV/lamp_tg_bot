@@ -24,7 +24,30 @@ const MEDIA_THREAD_ID = parseInt(process.env.MESSAGE_THREAD_ID_MONOPITER_CHAT);
 // Initialize bot and database connection
 const bot = new Telegraf(BOT_TOKEN);
 let db;
-
+// Дата регистрации пользователя
+function determineRegistrationYear(userId) {
+    if (userId >= 1 && userId <= 100000000) {
+        return '2013-2014';
+    } else if (userId > 100000000 && userId <= 200000000) {
+        return '2015-2016';
+    } else if (userId > 200000000 && userId <= 300000000) {
+        return '2017-2018';
+    } else if (userId > 300000000 && userId <= 400000000) {
+        return '2019-2020';
+    } else if (userId > 400000000 && userId <= 2147483647) {
+        return '2021 (до сентября)';
+    } else if (userId > 2147483647 && userId <= 5000000000) {
+        return '2021 (после сентября) - 2022';
+    } else if (userId > 5000000000 && userId <= 7000000000) {
+        return '2023';
+    } else if (userId > 7000000000 && userId <= 8143370828) {
+        return '2024';
+    } else if (userId > 8143370828 && userId <= 9500000000) {
+        return '2025 (прогноз)';
+    } else {
+        return 'Неизвестный период';
+    }
+}
 // Kaomoji list
 const KAOMOJIS = [
 	"(* ^ ω ^)", "(´ ∀ ` )", "(o^▽^o)", "(⌒▽⌒)☆", "ヽ(・∀・)ﾉ",
@@ -250,6 +273,8 @@ bot.on('new_chat_members', async (ctx) => {
 });
 
 bot.on('chat_join_request', async (ctx) => {
+  const userId = ctx.from.id;
+  const registrationPeriod = determineRegistrationYear(userId);
 	const { from } = ctx.chatJoinRequest;
 	if (ctx.chatJoinRequest.chat.id !== MONO_PITER_CHAT_ID) return;
 	
@@ -259,6 +284,7 @@ bot.on('chat_join_request', async (ctx) => {
     Логин: ${from.username ? `@${from.username}` : 'нету'}
     Имя: ${from.first_name} ${from.last_name || ""}
     Язык юзера: ${from.language_code}
+    Период регистрации(применый): ${registrationPeriod}
   `;
 	
 	const userMessage = `
