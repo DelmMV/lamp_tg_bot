@@ -284,7 +284,7 @@ bot.on('chat_join_request', async (ctx) => {
     Логин: ${from.username ? `@${from.username}` : 'нету'}
     Имя: ${from.first_name} ${from.last_name || ""}
     Язык юзера: ${from.language_code}
-    Период регистрации(применый): ${registrationPeriod}
+    Период регистрации(примерный): ${registrationPeriod}
   `;
 	
 	const userMessage = `
