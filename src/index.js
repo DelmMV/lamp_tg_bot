@@ -116,7 +116,7 @@ const sendTelegramMedia = async (chatId, content, options = {}) => {
     } catch (error) {
         console.error('Error sending media:', error);
         await sendTelegramMessage(
-            ADMIN_CHAT_ID, 
+            ADMIN_CHAT_ID,
             `Ошибка отправки медиа: ${error.response?.description || error.message}`,
             { message_thread_id: LAMP_THREAD_ID }
         );
@@ -284,7 +284,7 @@ bot.on('chat_join_request', async (ctx) => {
     Логин: ${from.username ? `@${from.username}` : 'нету'}
     Имя: ${from.first_name} ${from.last_name || ""}
     Язык юзера: ${from.language_code}
-    Период регистрации(примерный): ${registrationPeriod}
+    Регистрация: ~ ${registrationPeriod}
   `;
 	
 	const userMessage = `
