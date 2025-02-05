@@ -82,22 +82,22 @@ function createRegexPattern(word) {
 }
 
 function containsForbiddenWords(text) {
-	if (typeof text !== 'string') {
-		return false;
-	}
-	
-	const lowerCaseText = text.toLowerCase();
-	
-	for (const word of bannedWords) {
-		const pattern = createRegexPattern(word);
-		const regex = new RegExp(`(^|[^а-яёa-z])${pattern}($|[^а-яёa-z])`, 'i');
-		
-		if (regex.test(lowerCaseText)) {
-			return true;
-		}
-	}
-	
-	return false;
+    if (typeof text !== 'string') {
+        return { found: false };
+    }
+    
+    const lowerCaseText = text.toLowerCase();
+    
+    for (const word of bannedWords) {
+        const pattern = createRegexPattern(word);
+        const regex = new RegExp(`(^|[^а-яёa-z])${pattern}($|[^а-яёa-z])`, 'i');
+        
+        if (regex.test(lowerCaseText)) {
+            return { found: true, word: word };
+        }
+    }
+    
+    return { found: false };
 }
 
 const getRandomKaomoji = () => KAOMOJIS[Math.floor(Math.random() * KAOMOJIS.length)];
@@ -335,9 +335,10 @@ bot.on('message', async (ctx) => {
 	
 	if(ctx.message.chat.id === MONO_PITER_CHAT_ID) {
 		try {
-			if (containsForbiddenWords(messageText)) {
-				await ctx.reply('Ваше сообщение содержит недопустимые слова. Пожалуйста соблюдайте культуру общения нашего сообщества.', {reply_to_message_id: ctx.message.message_id});
-				await sendTelegramMessage(ADMIN_CHAT_ID, answer, {
+		  const result = containsForbiddenWords(messageText);
+			if (result.found) {
+				await ctx.reply(`Ваше сообщение содержит недопустимое слово: "${result.word}". Пожалуйста соблюдайте культуру общения нашего сообщества.`, {reply_to_message_id: ctx.message.message_id});
+				await sendTelegramMessage(ADMIN_CHAT_ID, `${answer}\nЗапрещенное слово: "${result.word}"`, {
 					message_thread_id: LAMP_THREAD_ID,
 					parse_mode: 'HTML'
 				});
