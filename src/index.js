@@ -337,8 +337,10 @@ bot.on('message', async (ctx) => {
 		try {
 		  const result = containsForbiddenWords(messageText);
 			if (result.found) {
-				await ctx.reply(`Ваше сообщение содержит недопустимое слово: "${result.word}". Пожалуйста соблюдайте культуру общения нашего сообщества.`, {reply_to_message_id: ctx.message.message_id});
-				await sendTelegramMessage(ADMIN_CHAT_ID, `${answer}\nЗапрещенное слово: "${result.word}"`, {
+			await ctx.reply(`Ваше сообщение содержит недопустимое слово: <tg-spoiler>${result.word}</tg-spoiler>. Пожалуйста соблюдайте культуру общения нашего сообщества.`, {
+    reply_to_message_id: ctx.message.message_id,
+    parse_mode: 'HTML'
+});				await sendTelegramMessage(ADMIN_CHAT_ID, `${answer}\nЗапрещенное слово: "${result.word}"`, {
 					message_thread_id: LAMP_THREAD_ID,
 					parse_mode: 'HTML'
 				});
