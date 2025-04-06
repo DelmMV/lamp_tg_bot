@@ -6,7 +6,7 @@
  const { containsForbiddenWords } = require('../utils/contentFilter');
  const { sendTelegramMessage } = require('../utils/messaging');
  const { hasMediaHashtag } = require('../utils/helpers');
- const { deleteComment, getJoinRequestByUserId } = require('../db');
+ const { deleteComment, getJoinRequestByUserId, saveUserButtonMessage } = require('../db');
  const { ADMIN_CHAT_ID, MONO_PITER_CHAT_ID, LAMP_THREAD_ID } = require('../config');
  const { handleMediaGroup, handleSingleMessage } = require('./mediaHandler');
 
@@ -146,53 +146,56 @@ async function handleHashtagMedia(bot, ctx) {
  * @param {Object} from - Данные отправителя
  * @returns {Promise<boolean>} - Результат операции
  */
-async function forwardMessageToAdmins(bot, ctx, from) {
-  const userLink = `<a href="tg://user?id=${from.id}">${from.first_name} ${from.last_name || ""}</a>`;
-  const username = from.username ? `@${from.username}` : 'отсутствует';
-  
-  // Формируем информативное сообщение для администраторов с текстом
-  const messageContent = ctx.message.text || '[нет текста]';
-  const adminMessage = `
-📥 <b>Сообщение от пользователя с активной заявкой</b>
-
-👤 <b>Отправитель:</b> ${userLink}
-🆔 <b>ID:</b> <code>${from.id}</code>
-👤 <b>Username:</b> ${username}
-
-💬 <b>Сообщение:</b>
-${messageContent}
-  `.trim();
-  
-  // Отправляем сообщение администраторам
-  await sendTelegramMessage(bot, ADMIN_CHAT_ID, adminMessage, {
-    message_thread_id: LAMP_THREAD_ID,
-    parse_mode: 'HTML',
-    // Добавляем кнопки для действий с заявкой
-    reply_markup: {
-      inline_keyboard: [
-        [
-          { text: '✅ Принять', callback_data: `approve_${from.id}` },
-          { text: '❌ Отклонить', callback_data: `reject_${from.id}` }
-        ],
-        [
-          { text: '❓ Задать вопрос', callback_data: `ask_${from.id}` }
-        ]
-      ]
-    }
-  });
-  
-  // Если есть фото или видео, отправляем его отдельно
-  if (ctx.message.photo || ctx.message.video) {
-    await bot.telegram.sendCopy(ADMIN_CHAT_ID, ctx.message, { 
-      message_thread_id: LAMP_THREAD_ID,
-      caption: `📎 Медиа от пользователя ${userLink} (ID: ${from.id})`,
-      parse_mode: 'HTML'
-    });
-  }
-  
-  console.log(`✅ Сообщение от пользователя ${from.id} переслано администраторам`);
-  return true;
-}
+ async function forwardMessageToAdmins(bot, ctx, from) {
+   const userLink = `<a href="tg://user?id=${from.id}">${from.first_name} ${from.last_name || ""}</a>`;
+   const username = from.username ? `@${from.username}` : 'отсутствует';
+   
+   // Формируем информативное сообщение для администраторов с текстом
+   const messageContent = ctx.message.text || '[нет текста]';
+   const adminMessage = `
+ 📥 <b>Сообщение от пользователя с активной заявкой</b>
+ 
+ 👤 <b>Отправитель:</b> ${userLink}
+ 🆔 <b>ID:</b> <code>${from.id}</code>
+ 👤 <b>Username:</b> ${username}
+ 
+ 💬 <b>Сообщение:</b>
+ ${messageContent}
+   `.trim();
+   
+   // Отправляем сообщение администраторам
+   const sentMsg = await sendTelegramMessage(bot, ADMIN_CHAT_ID, adminMessage, {
+     message_thread_id: LAMP_THREAD_ID,
+     parse_mode: 'HTML',
+     // Добавляем кнопки для действий с заявкой
+     reply_markup: {
+       inline_keyboard: [
+         [
+           { text: '✅ Принять', callback_data: `approve_${from.id}` },
+           { text: '❌ Отклонить', callback_data: `reject_${from.id}` }
+         ],
+         [
+           { text: '❓ Задать вопрос', callback_data: `ask_${from.id}` }
+         ]
+       ]
+     }
+   });
+   
+   // Сохраняем ID сообщения с кнопками в БД
+   await saveUserButtonMessage(from.id, sentMsg.message_id);
+   
+   // Если есть фото или видео, отправляем его отдельно
+   if (ctx.message.photo || ctx.message.video) {
+     await bot.telegram.sendCopy(ADMIN_CHAT_ID, ctx.message, { 
+       message_thread_id: LAMP_THREAD_ID,
+       caption: `📎 Медиа от пользователя ${userLink} (ID: ${from.id})`,
+       parse_mode: 'HTML'
+     });
+   }
+   
+   console.log(`✅ Сообщение от пользователя ${from.id} переслано администраторам`);
+   return true;
+ }
 
 /**
  * Отправляет стандартный ответ пользователю без активной заявки

@@ -4,7 +4,7 @@
  */
 
 const { MongoClient, ObjectId } = require('mongodb');
-const { MONGO_URL, DB_NAME } = require('../config');
+const { MONGO_URL, DB_NAME, ADMIN_CHAT_ID, LAMP_THREAD_ID } = require('../config');
 
 /** @type {import('mongodb').Db} */
 let db = null;
@@ -176,6 +176,55 @@ async function getJoinRequestByUserId(userId) {
   }
 }
 
+/**
+ * Сохраняет ID сообщения с кнопками для пользователя
+ * @async
+ * @param {string} userId - ID пользователя
+ * @param {number} messageId - ID сообщения
+ * @returns {Promise<boolean>} - Результат операции
+ */
+ async function saveUserButtonMessage(userId, messageId) {
+   try {
+     const collection = db.collection('buttonMessages');
+     
+     await collection.insertOne({
+       userId: parseInt(userId, 10),
+       messageId: messageId,
+       chatId: ADMIN_CHAT_ID,
+       threadId: LAMP_THREAD_ID,
+       createdAt: new Date()
+     });
+     
+     console.log(`✅ Сохранено сообщение с кнопками ID: ${messageId} для пользователя ${userId}`);
+     return true;
+   } catch (error) {
+     console.error('❌ Error saving button message:', error);
+     return false;
+   }
+ }
+
+/**
+ * Получает все ID сообщений с кнопками для пользователя
+ * @async
+ * @param {string} userId - ID пользователя
+ * @returns {Promise<Array>} - Массив ID сообщений
+ */
+ async function getUserButtonMessages(userId) {
+   try {
+     const collection = db.collection('buttonMessages');
+     
+     const messages = await collection.find({ 
+       userId: parseInt(userId, 10) 
+     }).toArray();
+     
+     console.log(`📋 Найдено ${messages.length} сообщений с кнопками для пользователя ${userId}`);
+     return messages;
+   } catch (error) {
+     console.error('❌ Error getting button messages:', error);
+     return [];
+   }
+ }
+
 module.exports = {
   connectToDatabase,
   closeDatabase,
@@ -184,5 +233,7 @@ module.exports = {
   updateJoinRequestStatus, 
   addMessageToJoinRequest, 
   getJoinRequestByUserId,
+  saveUserButtonMessage,
+  getUserButtonMessages,
   getDb: () => db
 };

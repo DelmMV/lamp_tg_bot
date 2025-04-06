@@ -1,6 +1,7 @@
 const { Telegraf } = require("telegraf");
+const { MongoClient, ObjectId } = require('mongodb');
 const { connectToDatabase, closeDatabase } = require("./db");
-const { BOT_TOKEN, MONO_PITER_CHAT_ID, MEDIA_THREAD_ID } = require("./config");
+const { BOT_TOKEN, MONO_PITER_CHAT_ID, MEDIA_THREAD_ID, MONGO_URL, DB_NAME } = require("./config");
 const { containsForbiddenWords } = require("./utils/contentFilter");
 const { hasMediaHashtag } = require("./utils/helpers");
 const { sendTelegramMessage, sendTelegramMedia } = require("./utils/messaging");

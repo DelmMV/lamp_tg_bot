@@ -8,7 +8,9 @@ const {
   saveJoinRequest, 
   updateJoinRequestStatus, 
   addMessageToJoinRequest, 
-  getJoinRequestByUserId 
+  getJoinRequestByUserId,
+  saveUserButtonMessage,
+  getUserButtonMessages
 } = require('../db');
 const { ADMIN_CHAT_ID, LAMP_THREAD_ID, MONO_PITER_CHAT_ID } = require('../config');
 
@@ -70,6 +72,9 @@ const pendingQuestions = new Map();
      // Обновляем сообщение в админ-чате
      await updateAdminMessage(bot, joinRequest, '✅ Заявка одобрена');
      
+     // Обновляем все сообщения с кнопками для этого пользователя
+     await updateAllUserMessages(bot, userId, 'approved');
+     
      // Сообщаем админу об успешном действии
      await ctx.answerCbQuery('Пользователь успешно принят в группу');
      console.log(`✅ Пользователь ${userId} успешно принят`);
@@ -130,6 +135,9 @@ const pendingQuestions = new Map();
      
      // Обновляем сообщение в админ-чате
      await updateAdminMessage(bot, joinRequest, '❌ Заявка отклонена');
+     
+     // Обновляем все сообщения с кнопками для этого пользователя
+     await updateAllUserMessages(bot, userId, 'rejected');
      
      // Сообщаем админу об успешном действии
      await ctx.answerCbQuery('Заявка отклонена');
@@ -375,6 +383,105 @@ const pendingQuestions = new Map();
      return true;
    }
  }
+ 
+ /**
+  * Обновляет кнопки во всех сообщениях, связанных с пользователем
+  * @async
+  * @param {Object} bot - Экземпляр бота Telegraf
+  * @param {string} userId - ID пользователя
+  * @param {string} status - Новый статус заявки ('approved' или 'rejected')
+  */
+  async function updateAllUserMessages(bot, userId, status) {
+    try {
+      console.log(`🔄 Начато обновление кнопок в сообщениях для пользователя ${userId}`);
+      
+      // Получаем все сохранённые сообщения с кнопками для данного пользователя
+      const buttonMessages = await getUserButtonMessages(userId);
+      
+      if (!buttonMessages || buttonMessages.length === 0) {
+        console.log(`ℹ️ Не найдено сообщений с кнопками для пользователя ${userId}`);
+        return;
+      }
+      
+      console.log(`🔍 Найдено ${buttonMessages.length} сообщений с кнопками для пользователя ${userId}`);
+      
+      // Создаем новую клавиатуру только с кнопкой "Задать вопрос"
+      const newKeyboard = {
+        inline_keyboard: [
+          [
+            { text: '❓ Задать вопрос', callback_data: `ask_${userId}` }
+          ]
+        ]
+      };
+      
+      // Счетчик обновленных сообщений
+      let updatedCount = 0;
+      
+      // Обрабатываем каждое сообщение
+      for (const message of buttonMessages) {
+        try {
+          // Обновляем сообщение с новой клавиатурой
+          await bot.telegram.editMessageReplyMarkup(
+            ADMIN_CHAT_ID,
+            message.messageId,
+            null,
+            newKeyboard
+          );
+          
+          updatedCount++;
+          console.log(`✅ Обновлено сообщение ID: ${message.messageId}`);
+        } catch (editError) {
+          // Игнорируем ошибку "message is not modified"
+          if (editError.description && editError.description.includes('message is not modified')) {
+            console.log(`⚠️ Сообщение ${message.messageId} уже имеет актуальную клавиатуру`);
+          } else if (editError.description && editError.description.includes('message to edit not found')) {
+            console.log(`⚠️ Сообщение ${message.messageId} не найдено (возможно, удалено)`);
+          } else {
+            console.error(`❌ Ошибка при обновлении сообщения ${message.messageId}:`, editError);
+          }
+        }
+      }
+      
+      console.log(`🔄 Завершено обновление кнопок. Обновлено сообщений: ${updatedCount}`);
+    } catch (error) {
+      console.error('❌ Ошибка при обновлении кнопок в сообщениях:', error);
+    }
+  }
+ 
+ /**
+  * Получает последние сообщения из чата/треда
+  * @async
+  * @param {Object} bot - Экземпляр бота Telegraf
+  * @param {number} chatId - ID чата
+  * @param {number} threadId - ID треда (если есть)
+  * @param {number} limit - Максимальное количество сообщений
+  * @returns {Promise<Array>} - Массив сообщений
+  */
+ async function fetchRecentMessages(bot, chatId, threadId, limit = 100) {
+   try {
+     // Пытаемся получить сообщения через метод getChat, но это временное решение
+     // В идеале нужно использовать метод getChatHistory, когда он станет доступен в Bot API
+     
+     // Для данной задачи придется использовать прокси-метод
+     // Это эмуляция получения сообщений, которые бот может видеть в чате
+     
+     // Получаем последние обновления (это не идеальное решение, но в рамках API телеграм бота - лучшее, что можно сделать)
+     // Реальная реализация будет зависеть от того, как хранятся сообщения в вашей системе
+     
+     // Это упрощенная "заглушка" для концепции
+     // В реальном сценарии вам может потребоваться собственное хранилище сообщений
+     
+     // Притворимся, что мы получили сообщения
+     console.log(`🔍 Попытка получить последние сообщения из чата ${chatId}, тред ${threadId}`);
+     
+     // Здесь мы просто возвращаем пустой массив, так как у нас нет прямого доступа к истории сообщений
+     // В идеальном мире мы бы хранили ID всех сообщений с кнопками в базе данных
+     return [];
+   } catch (error) {
+     console.error('❌ Ошибка при получении сообщений:', error);
+     return [];
+   }
+ }
 
 /**
  * Обрабатывает ответ пользователя на вопрос администратора
@@ -447,7 +554,7 @@ const pendingQuestions = new Map();
      console.log(`📤 Отправка ответа пользователя администраторам`);
      
      // Отправляем сообщение с кнопками действий
-     await sendTelegramMessage(bot, ADMIN_CHAT_ID, adminMessage, {
+     const sentMsg = await sendTelegramMessage(bot, ADMIN_CHAT_ID, adminMessage, {
        message_thread_id: LAMP_THREAD_ID,
        parse_mode: 'HTML',
        reply_markup: {
@@ -462,6 +569,9 @@ const pendingQuestions = new Map();
          ]
        }
      });
+     
+     // Сохраняем ID сообщения с кнопками в БД
+     await saveUserButtonMessage(userId, sentMsg.message_id);
      
      // Если пользователь отправил фото или видео, пересылаем их
      if (ctx.message.photo || ctx.message.video) {
@@ -511,8 +621,33 @@ const pendingQuestions = new Map();
  Статус: ${statusText}
      `.trim();
      
-     // Проверяем, если текущий статус в БД уже соответствует новому статусу
-     // Это может привести к ошибке "message is not modified"
+     // Определяем, какие кнопки показывать в зависимости от статуса
+     let replyMarkup;
+     
+     if (joinRequest.status === 'pending') {
+       // Для заявок в ожидании показываем все кнопки
+       replyMarkup = {
+         inline_keyboard: [
+           [
+             { text: '✅ Принять', callback_data: `approve_${userId}` },
+             { text: '❌ Отклонить', callback_data: `reject_${userId}` }
+           ],
+           [
+             { text: '❓ Задать вопрос', callback_data: `ask_${userId}` }
+           ]
+         ]
+       };
+     } else {
+       // Для обработанных заявок показываем только кнопку "Задать вопрос"
+       replyMarkup = {
+         inline_keyboard: [
+           [
+             { text: '❓ Задать вопрос', callback_data: `ask_${userId}` }
+           ]
+         ]
+       };
+     }
+     
      try {
        // Обновляем сообщение
        await bot.telegram.editMessageText(
@@ -522,17 +657,7 @@ const pendingQuestions = new Map();
          messageText,
          {
            parse_mode: 'HTML',
-           reply_markup: joinRequest.status === 'pending' ? {
-             inline_keyboard: [
-               [
-                 { text: '✅ Принять', callback_data: `approve_${userId}` },
-                 { text: '❌ Отклонить', callback_data: `reject_${userId}` }
-               ],
-               [
-                 { text: '❓ Задать вопрос', callback_data: `ask_${userId}` }
-               ]
-             ]
-           } : undefined
+           reply_markup: replyMarkup
          }
        );
        
@@ -599,5 +724,6 @@ module.exports = {
   handleAskQuestion,
   sendAdminQuestion,
   handleUserReply,
-  handleJoinRequestCallback
+  handleJoinRequestCallback,
+  updateAllUserMessages
 };
