@@ -56,6 +56,35 @@ async function deleteComment(commentId) {
     };
   }
 }
+/**
+ * Обновляет статус запроса на вступление с дополнительными данными
+ * @async
+ * @param {string} userId - ID пользователя
+ * @param {string} status - Новый статус запроса
+ * @param {Object} additionalData - Дополнительные данные для сохранения
+ * @returns {Promise<boolean>} - Результат операции
+ */
+async function updateJoinRequestStatusWithData(userId, status, additionalData = {}) {
+  try {
+    const joinRequestsCollection = db.collection('joinRequests');
+    const result = await joinRequestsCollection.updateOne(
+      { userId: parseInt(userId, 10) },
+      { 
+        $set: { 
+          status: status,
+          updatedAt: new Date(),
+          ...additionalData
+        } 
+      },
+      { sort: { createdAt: -1 } }
+    );
+    
+    return result.modifiedCount > 0;
+  } catch (error) {
+    console.error('Error updating join request status with data:', error);
+    return false;
+  }
+}
 
 /**
  * Закрывает соединение с базой данных
@@ -235,5 +264,6 @@ module.exports = {
   getJoinRequestByUserId,
   saveUserButtonMessage,
   getUserButtonMessages,
+  updateJoinRequestStatusWithData,
   getDb: () => db
 };

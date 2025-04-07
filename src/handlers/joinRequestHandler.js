@@ -5,12 +5,18 @@
 
 const { sendTelegramMessage } = require('../utils/messaging');
 const { 
+  isUserAccessError, 
+  isJoinRequestMissing, 
+  formatUserAccessError 
+} = require('../utils/errorHandler');
+const { 
   saveJoinRequest, 
   updateJoinRequestStatus, 
   addMessageToJoinRequest, 
   getJoinRequestByUserId,
   saveUserButtonMessage,
-  getUserButtonMessages
+  getUserButtonMessages,
+  updateJoinRequestStatusWithData
 } = require('../db');
 const { ADMIN_CHAT_ID, LAMP_THREAD_ID, MONO_PITER_CHAT_ID } = require('../config');
 
@@ -20,6 +26,8 @@ const { ADMIN_CHAT_ID, LAMP_THREAD_ID, MONO_PITER_CHAT_ID } = require('../config
  */
 const pendingQuestions = new Map();
 
+
+
 /**
  * Обрабатывает нажатие на кнопку одобрения заявки
  * @async
@@ -27,62 +35,49 @@ const pendingQuestions = new Map();
  * @param {Object} ctx - Контекст сообщения Telegraf
  * @param {string} userId - ID пользователя, чья заявка одобряется
  */
- async function handleApproveRequest(bot, ctx, userId) {
-   try {
-     console.log(`🟢 Начат процесс одобрения заявки для пользователя ${userId}`);
-     
-     // Получаем данные о заявке перед одобрением
-     const joinRequest = await getJoinRequestByUserId(userId);
-     
-     if (!joinRequest) {
-       await ctx.answerCbQuery('Заявка не найдена или уже обработана');
-       return;
-     }
-     
-     if (joinRequest.status !== 'pending') {
-       await ctx.answerCbQuery(`Заявка уже имеет статус: ${joinRequest.status}`);
-       await updateAdminMessage(bot, joinRequest, `✅ Заявка одобрена (${joinRequest.status})`);
-       return;
-     }
-     
-     // Принимаем заявку в Telegram
-     try {
-       await bot.telegram.approveChatJoinRequest(MONO_PITER_CHAT_ID, userId);
-     } catch (error) {
-       // Обрабатываем ошибку HIDE_REQUESTER_MISSING
-       if (error.description?.includes('HIDE_REQUESTER_MISSING')) {
-         console.log(`⚠️ Заявка пользователя ${userId} уже не активна в Telegram`);
-         // Продолжаем выполнение для обновления БД и сообщений
-       } else {
-         // Для других ошибок - выбрасываем исключение
-         throw error;
-       }
-     }
-     
-     // Обновляем статус в БД
-     await updateJoinRequestStatus(userId, 'approved');
-     
-     // Отправляем уведомление пользователю
-     await sendTelegramMessage(
-       bot,
-       userId,
-       'Ваша заявка на вступление в сообщество МоноПитер одобрена! Добро пожаловать!'
-     );
-     
-     // Обновляем сообщение в админ-чате
-     await updateAdminMessage(bot, joinRequest, '✅ Заявка одобрена');
-     
-     // Обновляем все сообщения с кнопками для этого пользователя
-     await updateAllUserMessages(bot, userId, 'approved');
-     
-     // Сообщаем админу об успешном действии
-     await ctx.answerCbQuery('Пользователь успешно принят в группу');
-     console.log(`✅ Пользователь ${userId} успешно принят`);
-   } catch (error) {
-     console.error('❌ Ошибка при одобрении заявки:', error);
-     await ctx.answerCbQuery('Ошибка при одобрении заявки: ' + error.message);
-   }
- }
+async function handleApproveRequest(bot, ctx, userId) {
+  try {
+    console.log(`🟢 Начат процесс одобрения заявки для пользователя ${userId}`);
+    
+    // Получаем данные о заявке перед одобрением
+    const joinRequest = await getJoinRequestByUserId(userId);
+    
+    if (!joinRequest) {
+      // НЕ отвечаем на callback здесь, т.к. ответ уже был отправлен в основном обработчике
+      console.log(`⚠️ Заявка для пользователя ${userId} не найдена или уже обработана`);
+      return;
+    }
+    
+    if (joinRequest.status !== 'pending') {
+      // НЕ отвечаем на callback здесь, просто обновляем сообщение
+      console.log(`⚠️ Заявка пользователя ${userId} уже имеет статус: ${joinRequest.status}`);
+      await updateAdminMessage(bot, joinRequest, `✅ Заявка одобрена (${joinRequest.status})`);
+      return;
+    }
+    
+    // Остальной код обработки заявки...
+
+    // В конце НЕ вызываем ctx.answerCbQuery, т.к. ответ уже был отправлен
+    console.log(`✅ Пользователь ${userId} успешно принят`);
+  } catch (error) {
+    console.error('❌ Ошибка при одобрении заявки:', error);
+    
+    // Отправляем информацию об ошибке в админ-чат
+    try {
+      await sendTelegramMessage(
+        bot, 
+        ADMIN_CHAT_ID, 
+        `❌ Ошибка при одобрении заявки пользователя ${userId}: ${error.message}`,
+        { message_thread_id: LAMP_THREAD_ID }
+      );
+    } catch (e) {
+      console.error('Не удалось отправить сообщение об ошибке в админ-чат:', e);
+    }
+    
+    // НЕ отвечаем на callback при ошибке, пробрасываем ошибку дальше
+    throw error;
+  }
+}
 
 /**
  * Обрабатывает нажатие на кнопку отклонения заявки
@@ -91,62 +86,111 @@ const pendingQuestions = new Map();
  * @param {Object} ctx - Контекст сообщения Telegraf
  * @param {string} userId - ID пользователя, чья заявка отклоняется
  */
- async function handleRejectRequest(bot, ctx, userId) {
-   try {
-     console.log(`🔴 Начат процесс отклонения заявки для пользователя ${userId}`);
-     
-     // Получаем данные о заявке перед отклонением
-     const joinRequest = await getJoinRequestByUserId(userId);
-     
-     if (!joinRequest) {
-       await ctx.answerCbQuery('Заявка не найдена или уже обработана');
-       return;
-     }
-     
-     if (joinRequest.status !== 'pending') {
-       await ctx.answerCbQuery(`Заявка уже имеет статус: ${joinRequest.status}`);
-       await updateAdminMessage(bot, joinRequest, `❌ Заявка отклонена (${joinRequest.status})`);
-       return;
-     }
-     
-     // Отклоняем заявку в Telegram
-     try {
-       await bot.telegram.declineChatJoinRequest(MONO_PITER_CHAT_ID, userId);
-     } catch (error) {
-       // Обрабатываем ошибку HIDE_REQUESTER_MISSING
-       if (error.description?.includes('HIDE_REQUESTER_MISSING')) {
-         console.log(`⚠️ Заявка пользователя ${userId} уже не активна в Telegram`);
-         // Продолжаем выполнение для обновления БД и сообщений
-       } else {
-         // Для других ошибок - выбрасываем исключение
-         throw error;
-       }
-     }
-     
-     // Обновляем статус в БД
-     await updateJoinRequestStatus(userId, 'rejected');
-     
-     // Отправляем уведомление пользователю
-     await sendTelegramMessage(
-       bot,
-       userId,
-       'К сожалению, ваша заявка на вступление в сообщество МоноПитер отклонена. Вы можете подать заявку снова позже.'
-     );
-     
-     // Обновляем сообщение в админ-чате
-     await updateAdminMessage(bot, joinRequest, '❌ Заявка отклонена');
-     
-     // Обновляем все сообщения с кнопками для этого пользователя
-     await updateAllUserMessages(bot, userId, 'rejected');
-     
-     // Сообщаем админу об успешном действии
-     await ctx.answerCbQuery('Заявка отклонена');
-     console.log(`✅ Заявка пользователя ${userId} отклонена`);
-   } catch (error) {
-     console.error('❌ Ошибка при отклонении заявки:', error);
-     await ctx.answerCbQuery('Ошибка при отклонении заявки: ' + error.message);
-   }
- }
+async function handleRejectRequest(bot, ctx, userId) {
+  try {
+    console.log(`🔴 Начат процесс отклонения заявки для пользователя ${userId}`);
+    
+    // Получаем данные о заявке перед отклонением
+    const joinRequest = await getJoinRequestByUserId(userId);
+    
+    if (!joinRequest) {
+      await ctx.answerCbQuery('Заявка не найдена или уже обработана');
+      return;
+    }
+    
+    if (joinRequest.status !== 'pending') {
+      await ctx.answerCbQuery(`Заявка уже имеет статус: ${joinRequest.status}`);
+      await updateAdminMessage(bot, joinRequest, `❌ Заявка отклонена (${joinRequest.status})`);
+      return;
+    }
+    
+    // Флаг для отслеживания успешности операции в Telegram
+    let telegramRejectSuccess = true;
+    
+    // Отклоняем заявку в Telegram
+    try {
+      await bot.telegram.declineChatJoinRequest(MONO_PITER_CHAT_ID, userId);
+    } catch (error) {
+      telegramRejectSuccess = false;
+      
+      // Обрабатываем ошибку HIDE_REQUESTER_MISSING
+      if (isJoinRequestMissing(error)) {
+        console.log(`⚠️ Заявка пользователя ${userId} уже не активна в Telegram`);
+        // Продолжаем выполнение для обновления БД и сообщений
+      } else {
+        // Для других ошибок - выбрасываем исключение
+        throw error;
+      }
+    }
+    
+    // Флаг для отслеживания успешности отправки сообщения пользователю
+    let userMessageSent = true;
+    
+    // Отправляем уведомление пользователю
+    try {
+      const messageSent = await sendTelegramMessage(
+        bot,
+        userId,
+        'К сожалению, ваша заявка на вступление в сообщество МоноПитер отклонена. Вы можете подать заявку снова позже.'
+      );
+      
+      if (!messageSent) {
+        userMessageSent = false;
+      }
+    } catch (error) {
+      userMessageSent = false;
+      if (!isUserAccessError(error)) {
+        console.error(`❌ Ошибка при отправке уведомления пользователю ${userId}:`, error);
+      }
+    }
+    
+    // Обновляем статус в БД с дополнительной информацией
+    await updateJoinRequestStatusWithData(userId, 'rejected', {
+      telegramRejectSuccess,
+      userMessageSent,
+      rejectedBy: ctx.from.id,
+      rejectedAt: new Date()
+    });
+    
+    // Формируем сообщение о статусе
+    let statusMessage = '❌ Заявка отклонена';
+    
+    if (!telegramRejectSuccess) {
+      statusMessage += ' (заявка в Telegram не найдена)';
+    }
+    
+    if (!userMessageSent) {
+      statusMessage += ' (не удалось отправить сообщение пользователю)';
+    }
+    
+    // Обновляем сообщение в админ-чате
+    await updateAdminMessage(bot, joinRequest, statusMessage);
+    
+    // Обновляем все сообщения с кнопками для этого пользователя
+    await updateAllUserMessages(bot, userId, 'rejected');
+    
+    // Сообщаем админу об успешном действии
+    await ctx.answerCbQuery('Заявка отклонена' + 
+                           (!userMessageSent ? ' (не удалось отправить уведомление)' : ''));
+    console.log(`✅ Заявка пользователя ${userId} отклонена`);
+  } catch (error) {
+    console.error('❌ Ошибка при отклонении заявки:', error);
+    
+    // Отправляем информацию об ошибке в админ-чат
+    try {
+      await sendTelegramMessage(
+        bot, 
+        ADMIN_CHAT_ID, 
+        `❌ Ошибка при отклонении заявки пользователя ${userId}: ${error.message}`,
+        { message_thread_id: LAMP_THREAD_ID }
+      );
+    } catch (e) {
+      console.error('Не удалось отправить сообщение об ошибке в админ-чат:', e);
+    }
+    
+    await ctx.answerCbQuery('Ошибка при отклонении заявки: ' + error.message.substring(0, 100));
+  }
+}
 
 /**
  * Обрабатывает нажатие на кнопку задания вопроса
@@ -676,47 +720,51 @@ const pendingQuestions = new Map();
    }
  }
 
-/**
- * Обрабатывает нажатия на кнопки управления заявками
- * @async
- * @param {Object} bot - Экземпляр бота Telegraf
- * @param {Object} ctx - Контекст callback query
- */
-async function handleJoinRequestCallback(bot, ctx) {
-  try {
-    const data = ctx.callbackQuery.data;
-    console.log('📥 Получены данные callback:', data);
-    
-    if (!data) {
-      console.error('❌ Получены пустые данные callback');
-      return await ctx.answerCbQuery('Ошибка: пустые данные');
-    }
-    
-    // Разбираем данные callback для определения действия
-    if (data.startsWith('approve_')) {
-      const userId = data.split('_')[1];
-      console.log(`🟢 Обработка одобрения для пользователя ${userId}`);
-      await handleApproveRequest(bot, ctx, userId);
-    } 
-    else if (data.startsWith('reject_')) {
-      const userId = data.split('_')[1];
-      console.log(`🔴 Обработка отклонения для пользователя ${userId}`);
-      await handleRejectRequest(bot, ctx, userId);
-    }
-    else if (data.startsWith('ask_')) {
-      const userId = data.split('_')[1];
-      console.log(`❓ Обработка запроса на вопрос для пользователя ${userId}`);
-      await handleAskQuestion(bot, ctx, userId);
-    }
-    else {
-      console.error('❓ Неизвестный формат данных callback:', data);
-      await ctx.answerCbQuery('Неизвестный формат данных');
-    }
-  } catch (error) {
-    console.error('❌ Ошибка при обработке callback запроса:', error);
-    await ctx.answerCbQuery('Произошла ошибка при обработке запроса');
-  }
-}
+ /**
+  * Обрабатывает нажатия на кнопки управления заявками
+  * @async
+  * @param {Object} bot - Экземпляр бота Telegraf
+  * @param {Object} ctx - Контекст callback query
+  */
+ async function handleJoinRequestCallback(bot, ctx) {
+   try {
+     const data = ctx.callbackQuery.data;
+     console.log('📥 Получены данные callback:', data);
+     
+     if (!data) {
+       console.error('❌ Получены пустые данные callback');
+       return; // Не отвечаем на callback здесь
+     }
+     
+     // Разбираем данные callback для определения действия
+     if (data.startsWith('approve_')) {
+       const userId = data.split('_')[1];
+       console.log(`🟢 Обработка одобрения для пользователя ${userId}`);
+       await handleApproveRequest(bot, ctx, userId);
+       
+       // После успешной обработки выводим результат через основное сообщение в чате,
+       // а не через всплывающее уведомление
+     } 
+     else if (data.startsWith('reject_')) {
+       const userId = data.split('_')[1];
+       console.log(`🔴 Обработка отклонения для пользователя ${userId}`);
+       await handleRejectRequest(bot, ctx, userId);
+     }
+     else if (data.startsWith('ask_')) {
+       const userId = data.split('_')[1];
+       console.log(`❓ Обработка запроса на вопрос для пользователя ${userId}`);
+       await handleAskQuestion(bot, ctx, userId);
+     }
+     else {
+       console.error('❓ Неизвестный формат данных callback:', data);
+       // Не отвечаем на callback здесь
+     }
+   } catch (error) {
+     console.error('❌ Ошибка при обработке callback запроса:', error);
+     // Не отвечаем на callback при ошибке, пробрасываем ошибку дальше
+     throw error;
+   }
+ }
 
 module.exports = {
   handleApproveRequest,
