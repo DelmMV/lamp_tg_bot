@@ -171,10 +171,6 @@ async function handleHashtagMedia(bot, ctx) {
      reply_markup: {
        inline_keyboard: [
          [
-           { text: '✅ Принять', callback_data: `approve_${from.id}` },
-           { text: '❌ Отклонить', callback_data: `reject_${from.id}` }
-         ],
-         [
            { text: '❓ Задать вопрос', callback_data: `ask_${from.id}` }
          ]
        ]

@@ -77,53 +77,53 @@ function setupUserEventHandlers(botInstance) {
  * Настраивает обработчик callback запросов (кнопки)
  * @param {Telegraf} botInstance - Экземпляр бота
  */
- function setupCallbackQueryHandler(botInstance) {
-   try {
-     botInstance.on('callback_query', async (ctx) => {
-       console.log('📢 Получен callback запрос:', ctx.callbackQuery.data);
-       
-       // Флаг, указывающий, что мы ответили на callback
-       let callbackAnswered = false;
-       
-       try {
-         // Сразу подтверждаем получение запроса и устанавливаем флаг
-         await ctx.answerCbQuery('Обрабатываем запрос...');
-         callbackAnswered = true;
-         
-         // Обрабатываем запрос с кнопками заявок
-         await handleJoinRequestCallback(botInstance, ctx);
-       } catch (error) {
-         console.error('❌ Ошибка обработки callback запроса:', error);
-         
-         try {
-           // Отправляем уведомление об ошибке администраторам
-           await sendTelegramMessage(
-             botInstance,
-             ADMIN_CHAT_ID,
-             `⚠️ <b>Ошибка при обработке callback</b>:\n<code>${ctx.callbackQuery.data}</code>\n\n${error.message}`,
-             { message_thread_id: LAMP_THREAD_ID, parse_mode: 'HTML' }
-           );
-           
-           // Уведомляем пользователя только если мы еще не ответили на callback
-           if (!callbackAnswered && !isCallbackQueryExpired(error)) {
-             await ctx.answerCbQuery('Произошла ошибка: ' + error.message.substring(0, 200)).catch(e => {
-               // Игнорируем ошибки при ответе на устаревший callback
-               if (!isCallbackQueryExpired(e)) {
-                 console.error('❌ Ошибка при ответе на callback после ошибки:', e);
-               }
-             });
-           }
-         } catch (notifyError) {
-           console.error('❌ Ошибка при отправке уведомления об ошибке:', notifyError);
-         }
-       }
-     });
-     console.log('✅ Обработчик callback запросов настроен');
-   } catch (error) {
-     console.error('❌ Ошибка при настройке обработчика callback запросов:', error);
-     throw error;
-   }
- }
+function setupCallbackQueryHandler(botInstance) {
+  try {
+    botInstance.on('callback_query', async (ctx) => {
+      console.log('📢 Получен callback запрос:', ctx.callbackQuery.data);
+      
+      // Флаг, указывающий, что мы ответили на callback
+      let callbackAnswered = false;
+      
+      try {
+        // Сразу подтверждаем получение запроса и устанавливаем флаг
+        await ctx.answerCbQuery('Обрабатываем запрос...');
+        callbackAnswered = true;
+        
+        // Обрабатываем запрос с кнопками заявок
+        await handleJoinRequestCallback(botInstance, ctx);
+      } catch (error) {
+        console.error('❌ Ошибка обработки callback запроса:', error);
+        
+        try {
+          // Отправляем уведомление об ошибке администраторам
+          await sendTelegramMessage(
+            botInstance,
+            ADMIN_CHAT_ID,
+            `⚠️ <b>Ошибка при обработке callback</b>:\n<code>${ctx.callbackQuery.data}</code>\n\n${error.message}`,
+            { message_thread_id: LAMP_THREAD_ID, parse_mode: 'HTML' }
+          );
+          
+          // Уведомляем пользователя только если мы еще не ответили на callback
+          if (!callbackAnswered && !isCallbackQueryExpired(error)) {
+            await ctx.answerCbQuery('Произошла ошибка: ' + error.message.substring(0, 200)).catch(e => {
+              // Игнорируем ошибки при ответе на устаревший callback
+              if (!isCallbackQueryExpired(e)) {
+                console.error('❌ Ошибка при ответе на callback после ошибки:', e);
+              }
+            });
+          }
+        } catch (notifyError) {
+          console.error('❌ Ошибка при отправке уведомления об ошибке:', notifyError);
+        }
+      }
+    });
+    console.log('✅ Обработчик callback запросов настроен');
+  } catch (error) {
+    console.error('❌ Ошибка при настройке обработчика callback запросов:', error);
+    throw error;
+  }
+}
 
 /**
  * Настраивает обработчики медиа-сообщений
@@ -265,26 +265,49 @@ function setupErrorHandler(botInstance) {
     console.error('Стек ошибки:', err.stack);
     
     try {
-      // Сохраняем контекст ошибки для отладки
-      let errorDetails = 'Неизвестный контекст';
+      // Собираем контекст ошибки
+      let errorContext = 'Глобальная ошибка обработки обновления';
+      let userId = null;
       
       if (ctx) {
-        errorDetails = `
-Чат: ${ctx.chat?.id || 'н/д'}
-Пользователь: ${ctx.from?.id || 'н/д'} (${ctx.from?.username || 'н/д'})
-Тип обновления: ${ctx.updateType || 'н/д'}
-        `.trim();
+        errorContext += ` (тип: ${ctx.updateType || 'неизвестный'})`;
+        userId = ctx.from?.id;
       }
       
       // Отправляем подробную информацию об ошибке администраторам
-      await sendTelegramMessage(
-        botInstance,
-        ADMIN_CHAT_ID,
-        `🚨 <b>Критическая ошибка бота</b>\n\n<pre>${err.message}</pre>\n\n<b>Детали:</b>\n<pre>${errorDetails}</pre>`,
-        { message_thread_id: LAMP_THREAD_ID, parse_mode: 'HTML' }
-      );
+      await logError(botInstance, err, errorContext, { 
+        userId,
+        functionName: 'Telegraf global error handler'
+      });
     } catch (notifyError) {
       console.error('❌ Ошибка при отправке уведомления об ошибке:', notifyError);
+    }
+  });
+  
+  // Обработка необработанных исключений
+  process.on('uncaughtException', async (error) => {
+    try {
+      await logError(botInstance, error, 'Необработанное исключение', {
+        functionName: 'process.uncaughtException'
+      });
+    } catch (e) {
+      console.error('❌ Ошибка при логировании необработанного исключения:', e);
+    }
+    
+    // В продакшене можно закомментировать эту строку,
+    // чтобы бот не перезапускался при каждой ошибке
+    // process.exit(1);
+  });
+
+  // Обработка необработанных отказов промисов
+  process.on('unhandledRejection', async (reason, promise) => {
+    try {
+      const error = reason instanceof Error ? reason : new Error(String(reason));
+      await logError(botInstance, error, 'Необработанный отказ промиса', {
+        functionName: 'process.unhandledRejection'
+      });
+    } catch (e) {
+      console.error('❌ Ошибка при логировании необработанного отказа промиса:', e);
     }
   });
   
