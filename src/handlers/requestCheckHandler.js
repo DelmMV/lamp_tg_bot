@@ -71,104 +71,169 @@ async function checkAndCancelExpiredRequests(bot) {
 		const canceledRequests = []
 		for (const request of expiredRequests) {
 			try {
-				// Отклоняем заявку в Telegram
-				await bot.telegram.declineChatJoinRequest(
-					MONO_PITER_CHAT_ID,
-					request.userId
-				)
+				// Проверяем статус заявки в Telegram
+				try {
+					const chatMember = await bot.telegram.getChatMember(
+						MONO_PITER_CHAT_ID,
+						request.userId
+					)
 
-				// Обновляем статус в базе данных
-				const result = await joinRequestsCollection.updateOne(
-					{ _id: request._id },
-					{
-						$set: {
-							status: 'expired',
-							updatedAt: new Date(),
-						},
+					// Если пользователь уже в группе или заблокирован, пропускаем
+					if (chatMember.status !== 'left') {
+						// Обновляем статус в базе данных
+						await joinRequestsCollection.updateOne(
+							{ _id: request._id },
+							{
+								$set: {
+									status: 'expired',
+									updatedAt: new Date(),
+									reason: `Пользователь уже в группе (статус: ${chatMember.status})`,
+								},
+							}
+						)
+						continue
 					}
-				)
+				} catch (error) {
+					// Если пользователь не найден или другие ошибки, пропускаем
+					await joinRequestsCollection.updateOne(
+						{ _id: request._id },
+						{
+							$set: {
+								status: 'expired',
+								updatedAt: new Date(),
+								reason: `Ошибка при проверке статуса: ${error.message}`,
+							},
+						}
+					)
+					continue
+				}
 
-				if (result.modifiedCount > 0) {
-					canceledRequests.push(request)
+				// Отклоняем заявку в Telegram
+				try {
+					await bot.telegram.declineChatJoinRequest(
+						MONO_PITER_CHAT_ID,
+						request.userId
+					)
 
-					// Отправляем уведомление пользователю
-					try {
-						const hours = Math.floor(lifetimeMinutes / 60)
-						const minutes = lifetimeMinutes % 60
-						const timeFormat =
-							hours > 0 ? `${hours} ч. ${minutes} мин.` : `${minutes} мин.`
+					// Обновляем статус в базе данных
+					const result = await joinRequestsCollection.updateOne(
+						{ _id: request._id },
+						{
+							$set: {
+								status: 'expired',
+								updatedAt: new Date(),
+								reason: 'Автоматически отменена по истечении времени',
+							},
+						}
+					)
+
+					if (result.modifiedCount > 0) {
+						canceledRequests.push(request)
+
+						// Отправляем уведомление пользователю
+						try {
+							const hours = Math.floor(lifetimeMinutes / 60)
+							const minutes = lifetimeMinutes % 60
+							const timeFormat =
+								hours > 0 ? `${hours} ч. ${minutes} мин.` : `${minutes} мин.`
+
+							await bot.telegram.sendMessage(
+								request.userId,
+								`⚠️ <b>Ваша заявка на вступление в группу отклонена</b>\n\n` +
+									`Время ожидания ответа истекло (${timeFormat})\n` +
+									`Вы можете подать новую заявку в любое время`,
+								{ parse_mode: 'HTML' }
+							)
+						} catch (userNotifyError) {
+							// Логируем ошибку только если это не "user is deactivated"
+							if (!userNotifyError.message.includes('user is deactivated')) {
+								console.error(
+									`❌ Ошибка при отправке уведомления пользователю ${request.userId}:`,
+									userNotifyError
+								)
+							}
+						}
+
+						// Отправляем уведомление в админ-канал
+						const adminHours = Math.floor(lifetimeMinutes / 60)
+						const adminMinutes = lifetimeMinutes % 60
+						const adminTimeFormat =
+							adminHours > 0
+								? `${adminHours} ч. ${adminMinutes} мин.`
+								: `${adminMinutes} мин.`
 
 						await bot.telegram.sendMessage(
-							request.userId,
-							`⚠️ <b>Ваша заявка на вступление в группу отклонена</b>\n\n` +
-								`Время ожидания ответа истекло (${timeFormat})\n` +
-								`Вы можете подать новую заявку в любое время`,
-							{ parse_mode: 'HTML' }
-						)
-					} catch (userNotifyError) {
-						console.error(
-							`❌ Ошибка при отправке уведомления пользователю ${request.userId}:`,
-							userNotifyError
+							ADMIN_CHAT_ID,
+							`⚠️ <b>Заявка автоматически отменена</b>\n\n` +
+								`👤 Пользователь: <a href="tg://user?id=${request.userId}">${
+									request.username || 'Неизвестный'
+								}</a>\n` +
+								`⏱ Время создания: ${request.createdAt.toLocaleString()}\n` +
+								`⏳ Время жизни: ${adminTimeFormat}`,
+							{
+								message_thread_id: LAMP_THREAD_ID,
+								parse_mode: 'HTML',
+								reply_markup: {
+									inline_keyboard: [
+										[
+											{
+												text: '❌ Бан',
+												callback_data: `${BAN_BUTTON}:${request.userId}`,
+											},
+										],
+									],
+								},
+							}
 						)
 					}
+				} catch (error) {
+					// Обрабатываем ошибку HIDE_REQUESTER_MISSING
+					if (error.message.includes('HIDE_REQUESTER_MISSING')) {
+						// Обновляем статус в базе данных
+						await joinRequestsCollection.updateOne(
+							{ _id: request._id },
+							{
+								$set: {
+									status: 'expired',
+									updatedAt: new Date(),
+									reason: 'Заявка уже была отменена',
+								},
+							}
+						)
+						continue
+					}
 
-					// Отправляем уведомление в админ-канал
-					const adminHours = Math.floor(lifetimeMinutes / 60)
-					const adminMinutes = lifetimeMinutes % 60
-					const adminTimeFormat =
-						adminHours > 0
-							? `${adminHours} ч. ${adminMinutes} мин.`
-							: `${adminMinutes} мин.`
-
+					// Для других ошибок отправляем уведомление в админ-канал
 					await bot.telegram.sendMessage(
 						ADMIN_CHAT_ID,
-						`⚠️ <b>Заявка автоматически отменена</b>\n\n` +
+						`⚠️ <b>Ошибка при отмене заявки</b>\n\n` +
 							`👤 Пользователь: <a href="tg://user?id=${request.userId}">${
 								request.username || 'Неизвестный'
 							}</a>\n` +
-							`⏱ Время создания: ${request.createdAt.toLocaleString()}\n` +
-							`⏳ Время жизни: ${adminTimeFormat}`,
+							`❌ Ошибка: ${error.message}`,
 						{
 							message_thread_id: LAMP_THREAD_ID,
 							parse_mode: 'HTML',
-							reply_markup: {
-								inline_keyboard: [
-									[
-										{
-											text: '❌ Бан',
-											callback_data: `${BAN_BUTTON}:${request.userId}`,
-										},
-									],
-								],
-							},
 						}
 					)
 				}
 			} catch (error) {
-				console.error(
-					`❌ Ошибка при отмене заявки пользователя ${request.userId}:`,
-					error
-				)
-
-				// Отправляем уведомление об ошибке в админ-канал
-				await bot.telegram.sendMessage(
-					ADMIN_CHAT_ID,
-					`⚠️ <b>Ошибка при отмене заявки</b>\n\n` +
-						`👤 Пользователь: <a href="tg://user?id=${request.userId}">${
-							request.username || 'Неизвестный'
-						}</a>\n` +
-						`❌ Ошибка: ${error.message}`,
-					{
-						message_thread_id: LAMP_THREAD_ID,
-						parse_mode: 'HTML',
-					}
-				)
+				// Логируем только критические ошибки
+				if (
+					!error.message.includes('HIDE_REQUESTER_MISSING') &&
+					!error.message.includes('user is deactivated')
+				) {
+					console.error(
+						`❌ Критическая ошибка при обработке заявки пользователя ${request.userId}:`,
+						error
+					)
+				}
 			}
 		}
 
 		return canceledRequests
 	} catch (error) {
-		console.error('Error checking and canceling expired requests:', error)
+		console.error('❌ Критическая ошибка при проверке заявок:', error)
 		return []
 	}
 }
