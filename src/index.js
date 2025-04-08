@@ -47,6 +47,9 @@ const {
 	handleBanButton,
 	handleConfirmBan,
 	handleCancelBan,
+	handleAcceptButton,
+	handleConfirmAccept,
+	handleCancelAccept,
 } = require('./handlers/requestCheckHandler')
 
 // Глобальная переменная для хранения экземпляра бота
@@ -137,6 +140,22 @@ function setupCallbackQueryHandler(botInstance) {
 
 				if (data.startsWith('cancel_ban:')) {
 					await handleCancelBan(ctx)
+					return
+				}
+
+				// Обрабатываем запрос с кнопками принятия
+				if (data.startsWith('accept_user:')) {
+					await handleAcceptButton(ctx)
+					return
+				}
+
+				if (data.startsWith('confirm_accept:')) {
+					await handleConfirmAccept(ctx)
+					return
+				}
+
+				if (data.startsWith('cancel_accept:')) {
+					await handleCancelAccept(ctx)
 					return
 				}
 

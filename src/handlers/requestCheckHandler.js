@@ -17,6 +17,9 @@ const {
 const BAN_BUTTON = 'ban_user'
 const CONFIRM_BAN_BUTTON = 'confirm_ban'
 const CANCEL_BAN_BUTTON = 'cancel_ban'
+const ACCEPT_BUTTON = 'accept_user'
+const CONFIRM_ACCEPT_BUTTON = 'confirm_accept'
+const CANCEL_ACCEPT_BUTTON = 'cancel_accept'
 
 /** @type {import('mongodb').Db} */
 let db = null
@@ -239,11 +242,11 @@ async function handleConfirmBan(ctx) {
 	const userId = ctx.callbackQuery.data.split(':')[1]
 
 	try {
-		// Баним пользователя в группе
-		await ctx.telegram.banChatMember(MONO_PITER_CHAT_ID, userId)
+		// Сначала принимаем пользователя в группу
+		await ctx.telegram.approveChatJoinRequest(MONO_PITER_CHAT_ID, userId)
 
-		// Отклоняем заявку на вступление
-		await ctx.telegram.declineChatJoinRequest(MONO_PITER_CHAT_ID, userId)
+		// Затем баним пользователя
+		await ctx.telegram.banChatMember(MONO_PITER_CHAT_ID, userId)
 
 		// Отправляем уведомление пользователю
 		try {
@@ -278,6 +281,73 @@ async function handleCancelBan(ctx) {
 	await ctx.editMessageText(`✅ Действие отменено`, { parse_mode: 'HTML' })
 }
 
+// Добавляем обработчики для кнопок принятия
+async function handleAcceptButton(ctx) {
+	const userId = ctx.callbackQuery.data.split(':')[1]
+
+	// Отправляем новое сообщение с подтверждением
+	await ctx.reply(
+		`⚠️ <b>Подтверждение принятия</b>\n\n` +
+			`Вы уверены, что хотите принять пользователя в группу?`,
+		{
+			parse_mode: 'HTML',
+			reply_markup: {
+				inline_keyboard: [
+					[
+						{
+							text: '✅ Принять',
+							callback_data: `${CONFIRM_ACCEPT_BUTTON}:${userId}`,
+						},
+						{
+							text: '❌ Отмена',
+							callback_data: `${CANCEL_ACCEPT_BUTTON}:${userId}`,
+						},
+					],
+				],
+			},
+		}
+	)
+}
+
+async function handleConfirmAccept(ctx) {
+	const userId = ctx.callbackQuery.data.split(':')[1]
+
+	try {
+		// Принимаем пользователя в группу
+		await ctx.telegram.approveChatJoinRequest(MONO_PITER_CHAT_ID, userId)
+
+		// Отправляем уведомление пользователю
+		try {
+			await ctx.telegram.sendMessage(
+				userId,
+				`✅ <b>Ваша заявка на вступление в группу одобрена</b>\n\n` +
+					`Добро пожаловать в группу!`,
+				{ parse_mode: 'HTML' }
+			)
+		} catch (notifyError) {
+			console.error(
+				'Ошибка при отправке уведомления пользователю:',
+				notifyError
+			)
+		}
+
+		await ctx.editMessageText(
+			`✅ Пользователь принят в группу\n` + `Пользователь уведомлен`,
+			{ parse_mode: 'HTML' }
+		)
+	} catch (error) {
+		console.error('Ошибка при принятии пользователя:', error)
+		await ctx.editMessageText(
+			`❌ Произошла ошибка при принятии пользователя: ${error.message}`,
+			{ parse_mode: 'HTML' }
+		)
+	}
+}
+
+async function handleCancelAccept(ctx) {
+	await ctx.editMessageText(`✅ Действие отменено`, { parse_mode: 'HTML' })
+}
+
 module.exports = {
 	connectToDatabase,
 	checkAndCancelExpiredRequests,
@@ -286,4 +356,7 @@ module.exports = {
 	handleBanButton,
 	handleConfirmBan,
 	handleCancelBan,
+	handleAcceptButton,
+	handleConfirmAccept,
+	handleCancelAccept,
 }
