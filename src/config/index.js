@@ -25,7 +25,7 @@ const config = {
 	JOIN_REQUEST: {
 		// Время жизни заявки в минутах
 		LIFETIME_MINUTES: parseInt(
-			process.env.JOIN_REQUEST_LIFETIME_MINUTES || '1140',
+			process.env.JOIN_REQUEST_LIFETIME_MINUTES || '1440',
 			10
 		),
 		// Частота проверки заявок в минутах
