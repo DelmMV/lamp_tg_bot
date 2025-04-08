@@ -13,6 +13,11 @@ const {
 	JOIN_REQUEST,
 } = require('../config')
 
+// Добавляем константы для кнопок
+const BAN_BUTTON = 'ban_user'
+const CONFIRM_BAN_BUTTON = 'confirm_ban'
+const CANCEL_BAN_BUTTON = 'cancel_ban'
+
 /** @type {import('mongodb').Db} */
 let db = null
 
@@ -123,6 +128,16 @@ async function checkAndCancelExpiredRequests(bot) {
 						{
 							message_thread_id: LAMP_THREAD_ID,
 							parse_mode: 'HTML',
+							reply_markup: {
+								inline_keyboard: [
+									[
+										{
+											text: '❌ Бан',
+											callback_data: `${BAN_BUTTON}:${request.userId}`,
+										},
+									],
+								],
+							},
 						}
 					)
 				}
@@ -195,9 +210,80 @@ function stopRequestCheckTimer() {
 	}
 }
 
+// Добавляем обработчики для кнопок бана
+async function handleBanButton(ctx) {
+	const userId = ctx.callbackQuery.data.split(':')[1]
+
+	// Отправляем новое сообщение с подтверждением
+	await ctx.reply(
+		`⚠️ <b>Подтверждение бана</b>\n\n` +
+			`Вы уверены, что хотите забанить пользователя? Это действие необратимо.`,
+		{
+			parse_mode: 'HTML',
+			reply_markup: {
+				inline_keyboard: [
+					[
+						{
+							text: '❌ Точно забанить',
+							callback_data: `${CONFIRM_BAN_BUTTON}:${userId}`,
+						},
+						{ text: '✅ Нет', callback_data: `${CANCEL_BAN_BUTTON}:${userId}` },
+					],
+				],
+			},
+		}
+	)
+}
+
+async function handleConfirmBan(ctx) {
+	const userId = ctx.callbackQuery.data.split(':')[1]
+
+	try {
+		// Баним пользователя в группе
+		await ctx.telegram.banChatMember(MONO_PITER_CHAT_ID, userId)
+
+		// Отклоняем заявку на вступление
+		await ctx.telegram.declineChatJoinRequest(MONO_PITER_CHAT_ID, userId)
+
+		// Отправляем уведомление пользователю
+		try {
+			await ctx.telegram.sendMessage(
+				userId,
+				`⚠️ <b>Ваша заявка на вступление в группу отклонена</b>\n\n` +
+					`Вы заблокированы в группе.`,
+				{ parse_mode: 'HTML' }
+			)
+		} catch (notifyError) {
+			console.error(
+				'Ошибка при отправке уведомления пользователю:',
+				notifyError
+			)
+		}
+
+		await ctx.editMessageText(
+			`✅ Пользователь заблокирован в группе\n` +
+				`Заявка отклонена и пользователь уведомлен`,
+			{ parse_mode: 'HTML' }
+		)
+	} catch (error) {
+		console.error('Ошибка при блокировке пользователя:', error)
+		await ctx.editMessageText(
+			`❌ Произошла ошибка при блокировке пользователя: ${error.message}`,
+			{ parse_mode: 'HTML' }
+		)
+	}
+}
+
+async function handleCancelBan(ctx) {
+	await ctx.editMessageText(`✅ Действие отменено`, { parse_mode: 'HTML' })
+}
+
 module.exports = {
 	connectToDatabase,
 	checkAndCancelExpiredRequests,
 	startRequestCheckTimer,
 	stopRequestCheckTimer,
+	handleBanButton,
+	handleConfirmBan,
+	handleCancelBan,
 }

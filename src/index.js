@@ -44,6 +44,9 @@ const {
 	startRequestCheckTimer,
 	stopRequestCheckTimer,
 	connectToDatabase: connectRequestCheckDb,
+	handleBanButton,
+	handleConfirmBan,
+	handleCancelBan,
 } = require('./handlers/requestCheckHandler')
 
 // Глобальная переменная для хранения экземпляра бота
@@ -118,6 +121,24 @@ function setupCallbackQueryHandler(botInstance) {
 				// Сразу подтверждаем получение запроса и устанавливаем флаг
 				await ctx.answerCbQuery('Обрабатываем запрос...')
 				callbackAnswered = true
+
+				const data = ctx.callbackQuery.data
+
+				// Обрабатываем запрос с кнопками бана
+				if (data.startsWith('ban_user:')) {
+					await handleBanButton(ctx)
+					return
+				}
+
+				if (data.startsWith('confirm_ban:')) {
+					await handleConfirmBan(ctx)
+					return
+				}
+
+				if (data.startsWith('cancel_ban:')) {
+					await handleCancelBan(ctx)
+					return
+				}
 
 				// Обрабатываем запрос с кнопками заявок
 				await handleJoinRequestCallback(botInstance, ctx)
