@@ -284,16 +284,14 @@ function setupMessageHandler(botInstance) {
 	try {
 		botInstance.on('message', async ctx => {
 			try {
-				const messagePreview = ctx.message.text
-					? ctx.message.text.substring(0, 50) +
-					  (ctx.message.text.length > 50 ? '...' : '')
-					: '[не текстовое сообщение]'
-
-				console.log('📩 Получено сообщение:', messagePreview)
-
 				// Проверяем, является ли сообщение личным
 				if (ctx.message.chat.type === 'private') {
-					console.log('👤 Обработка личного сообщения')
+					const messagePreview = ctx.message.text
+						? ctx.message.text.substring(0, 50) +
+						  (ctx.message.text.length > 50 ? '...' : '')
+						: '[не текстовое сообщение]'
+
+					console.log('📩 Получено личное сообщение:', messagePreview)
 
 					// Сначала пробуем обработать как ответ на вопрос администратора
 					const isUserReply = await handleUserReply(botInstance, ctx)
@@ -307,22 +305,15 @@ function setupMessageHandler(botInstance) {
 					return // Прекращаем обработку для личных сообщений
 				}
 
-				// Проверяем, не является ли сообщение ответом на запрос вопроса
+				// Для сообщений не из личного чата проверяем только необходимые условия
 				if (ctx.message.reply_to_message) {
-					console.log('🔄 Обнаружен ответ на сообщение')
 					const isHandled = await sendAdminQuestion(botInstance, ctx)
-					if (isHandled) {
-						console.log('✅ Сообщение обработано как вопрос от администратора')
-						return // Если сообщение обработано как вопрос, прекращаем выполнение
-					}
+					if (isHandled) return
 				}
 
 				// Проверка на запрещенные слова
 				const hasForbiddenWords = await checkForbiddenWords(botInstance, ctx)
-				if (hasForbiddenWords) {
-					console.log('🚫 Обнаружены запрещенные слова')
-					return
-				}
+				if (hasForbiddenWords) return
 
 				// Обработка хэштегов медиа в ответах на сообщения
 				await handleHashtagMedia(botInstance, ctx)

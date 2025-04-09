@@ -173,13 +173,6 @@ ${
  * @param {Object} ctx - Контекст сообщения Telegraf
  * @returns {Promise<boolean>} - Было ли сообщение обработано как вопрос
  */
-/**
- * Отправляет вопрос от админа пользователю
- * @async
- * @param {Object} bot - Экземпляр бота Telegraf
- * @param {Object} ctx - Контекст сообщения Telegraf
- * @returns {Promise<boolean>} - Было ли сообщение обработано как вопрос
- */
 async function sendAdminQuestion(bot, ctx) {
 	try {
 		// Проверяем, что это ответ на сообщение
@@ -187,11 +180,8 @@ async function sendAdminQuestion(bot, ctx) {
 			return false
 		}
 
-		console.log('🔍 Проверка, является ли сообщение ответом на запрос вопроса')
-
 		// Используем ID администратора для поиска его текущих вопросов
 		const adminId = ctx.from.id
-		console.log(`👮 Обработка ответа от администратора: ${adminId}`)
 
 		// Находим все ожидающие вопросы этого администратора
 		let foundUserIds = []
@@ -199,14 +189,10 @@ async function sendAdminQuestion(bot, ctx) {
 		for (const [key, data] of pendingQuestions.entries()) {
 			if (data.adminId === adminId) {
 				foundUserIds.push(data.userId)
-				console.log(
-					`🔎 Найден ожидающий вопрос для пользователя: ${data.userId}`
-				)
 			}
 		}
 
 		if (foundUserIds.length === 0) {
-			console.log('❌ Не найдено ожидающих вопросов для этого администратора')
 			return false
 		}
 
@@ -216,7 +202,6 @@ async function sendAdminQuestion(bot, ctx) {
 
 		if (foundUserIds.length === 1) {
 			targetUserId = foundUserIds[0]
-			console.log(`✅ Автоматически выбран пользователь: ${targetUserId}`)
 		} else {
 			// Проверяем, не указан ли ID пользователя в тексте ответа
 			const question = ctx.message.text || ''
@@ -228,7 +213,6 @@ async function sendAdminQuestion(bot, ctx) {
 					targetUserId = parsedId
 					// Удаляем ID пользователя из сообщения
 					ctx.message.text = question.replace(/^\d+:\s*/, '')
-					console.log(`✅ Извлечен ID пользователя из текста: ${targetUserId}`)
 				} else {
 					await ctx.reply(`❌ ID пользователя ${parsedId} не найден в ваших текущих запросах вопросов.
  Активные запросы вопросов: ${foundUserIds.join(', ')}`)
@@ -248,7 +232,6 @@ async function sendAdminQuestion(bot, ctx) {
 		// Получаем данные о пользователе для проверки
 		const joinRequest = await getJoinRequestByUserId(targetUserId)
 		if (!joinRequest) {
-			console.log(`❌ Пользователь ${targetUserId} не найден в заявках`)
 			await ctx.reply(
 				`Заявка для пользователя с ID ${targetUserId} не найдена или уже обработана.`
 			)
@@ -257,7 +240,6 @@ async function sendAdminQuestion(bot, ctx) {
 			for (const [key, data] of pendingQuestions.entries()) {
 				if (data.userId === targetUserId) {
 					pendingQuestions.delete(key)
-					console.log(`🗑️ Удален устаревший запрос: ${key}`)
 				}
 			}
 
@@ -285,8 +267,6 @@ async function sendAdminQuestion(bot, ctx) {
 			return true
 		}
 
-		console.log(`📤 Отправка вопроса пользователю ${targetUserId}: ${question}`)
-
 		// Отправляем вопрос пользователю
 		const messageSent = await sendTelegramMessage(
 			bot,
@@ -297,9 +277,6 @@ async function sendAdminQuestion(bot, ctx) {
 		// Проверяем результат отправки
 		if (messageSent === null) {
 			// Если сообщение не отправлено (null), пользователь, вероятно, заблокировал бота
-			console.log(
-				`❌ Не удалось отправить вопрос пользователю ${targetUserId} - пользователь, вероятно, заблокировал бота`
-			)
 			await ctx.reply(`❌ Не удалось отправить вопрос пользователю ${
 				joinRequest.firstName
 			} ${joinRequest.lastName || ''} (ID: ${targetUserId}).
@@ -309,7 +286,6 @@ async function sendAdminQuestion(bot, ctx) {
 			for (const [key, data] of pendingQuestions.entries()) {
 				if (data.userId === targetUserId && data.adminId === adminId) {
 					pendingQuestions.delete(key)
-					console.log(`🗑️ Удален ключ запроса: ${key}`)
 				}
 			}
 
@@ -331,20 +307,13 @@ async function sendAdminQuestion(bot, ctx) {
 		for (const [key, data] of pendingQuestions.entries()) {
 			if (data.userId === targetUserId && data.adminId === adminId) {
 				pendingQuestions.delete(key)
-				console.log(`🗑️ Удален ключ запроса: ${key}`)
 			}
 		}
-
-		console.log(
-			'📋 Оставшиеся ожидающие вопросы:',
-			Array.from(pendingQuestions.keys())
-		)
 
 		return true
 	} catch (error) {
 		console.error('❌ Ошибка при отправке вопроса администратора:', error)
-		await ctx.reply('❌ Ошибка при отправке вопроса: ' + error.message)
-		return true
+		return false
 	}
 }
 
