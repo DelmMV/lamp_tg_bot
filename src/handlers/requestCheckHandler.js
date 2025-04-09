@@ -307,11 +307,11 @@ async function handleConfirmBan(ctx) {
 	const userId = ctx.callbackQuery.data.split(':')[1]
 
 	try {
-		// Сначала принимаем пользователя в группу
-		await ctx.telegram.approveChatJoinRequest(MONO_PITER_CHAT_ID, userId)
-
-		// Затем баним пользователя
+		// Сначала баним пользователя
 		await ctx.telegram.banChatMember(MONO_PITER_CHAT_ID, userId)
+
+		// Затем отклоняем заявку
+		await ctx.telegram.declineChatJoinRequest(MONO_PITER_CHAT_ID, userId)
 
 		// Отправляем уведомление пользователю
 		try {
