@@ -94,7 +94,37 @@ async function checkAndCancelExpiredRequests(bot) {
 						continue
 					}
 				} catch (error) {
-					// Если пользователь не найден или другие ошибки, пропускаем
+					// Специальная обработка ошибки USER_ID_INVALID
+					if (error.message.includes('USER_ID_INVALID')) {
+						// Обновляем статус в базе данных
+						await joinRequestsCollection.updateOne(
+							{ _id: request._id },
+							{
+								$set: {
+									status: 'expired',
+									updatedAt: new Date(),
+									reason:
+										'Пользователь недействителен (возможно удалил аккаунт)',
+								},
+							}
+						)
+
+						// Отправляем уведомление в админ-канал
+						await bot.telegram.sendMessage(
+							ADMIN_CHAT_ID,
+							`⚠️ <b>Заявка автоматически отменена</b>\n\n` +
+								`👤 Пользователь: ID ${request.userId}\n` +
+								`❌ Причина: Пользователь недействителен (возможно удалил аккаунт)\n` +
+								`⏱ Время создания: ${request.createdAt.toLocaleString()}`,
+							{
+								message_thread_id: LAMP_THREAD_ID,
+								parse_mode: 'HTML',
+							}
+						)
+						continue
+					}
+
+					// Для других ошибок
 					await joinRequestsCollection.updateOne(
 						{ _id: request._id },
 						{
@@ -145,13 +175,48 @@ async function checkAndCancelExpiredRequests(bot) {
 								{ parse_mode: 'HTML' }
 							)
 						} catch (userNotifyError) {
-							// Логируем ошибку только если это не "user is deactivated"
-							if (!userNotifyError.message.includes('user is deactivated')) {
+							// Определяем тип ошибки для более точного логирования
+							const errorType = userNotifyError.message.includes(
+								'USER_ID_INVALID'
+							)
+								? 'Пользователь недействителен (возможно удалил аккаунт)'
+								: userNotifyError.message.includes(
+										'bot was blocked by the user'
+								  )
+								? 'Пользователь заблокировал бота'
+								: userNotifyError.message.includes('user is deactivated')
+								? 'Пользователь деактивировал аккаунт'
+								: 'Неизвестная ошибка'
+
+							// Логируем только нестандартные ошибки
+							if (
+								!userNotifyError.message.includes(
+									'bot was blocked by the user'
+								) &&
+								!userNotifyError.message.includes('USER_ID_INVALID') &&
+								!userNotifyError.message.includes('user is deactivated')
+							) {
 								console.error(
-									`❌ Ошибка при отправке уведомления пользователю ${request.userId}:`,
+									`❌ Нестандартная ошибка при отправке уведомления пользователю ${request.userId}:`,
 									userNotifyError
 								)
+							} else {
+								console.log(
+									`ℹ️ Стандартная ошибка при отправке уведомления пользователю ${request.userId}: ${errorType}`
+								)
 							}
+
+							// Обновляем статус в базе данных с более точной причиной
+							await joinRequestsCollection.updateOne(
+								{ _id: request._id },
+								{
+									$set: {
+										status: 'expired',
+										updatedAt: new Date(),
+										reason: `Автоматически отменена по истечении времени (${errorType})`,
+									},
+								}
+							)
 						}
 
 						// Отправляем уведомление в админ-канал
@@ -401,6 +466,33 @@ async function handleConfirmAccept(ctx) {
 			{ parse_mode: 'HTML' }
 		)
 	} catch (error) {
+		// Специальная обработка ошибки HIDE_REQUESTER_MISSING
+		if (error.message.includes('HIDE_REQUESTER_MISSING')) {
+			console.log(
+				`ℹ️ Заявка пользователя ${userId} уже была обработана (принята или отменена)`
+			)
+
+			// Обновляем сообщение с информацией о том, что заявка уже обработана
+			await ctx.editMessageText(
+				`ℹ️ Заявка пользователя уже была обработана (принята или отменена)`,
+				{ parse_mode: 'HTML' }
+			)
+			return
+		}
+
+		// Специальная обработка ошибки USER_ALREADY_PARTICIPANT
+		if (error.message.includes('USER_ALREADY_PARTICIPANT')) {
+			console.log(`ℹ️ Пользователь ${userId} уже является участником группы`)
+
+			// Обновляем сообщение с информацией о том, что пользователь уже в группе
+			await ctx.editMessageText(
+				`ℹ️ Пользователь уже является участником группы`,
+				{ parse_mode: 'HTML' }
+			)
+			return
+		}
+
+		// Для других ошибок
 		console.error('Ошибка при принятии пользователя:', error)
 		await ctx.editMessageText(
 			`❌ Произошла ошибка при принятии пользователя: ${error.message}`,
