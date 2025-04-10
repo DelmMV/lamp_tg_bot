@@ -395,6 +395,27 @@ async function handleConfirmBan(ctx) {
 	const userId = ctx.callbackQuery.data.split(':')[1]
 
 	try {
+		// Проверяем статус пользователя в группе
+		try {
+			const chatMember = await ctx.telegram.getChatMember(
+				MONO_PITER_CHAT_ID,
+				userId
+			)
+
+			// Если пользователь уже забанен, выходим
+			if (chatMember.status === 'kicked') {
+				await ctx.editMessageText(`ℹ️ Пользователь уже заблокирован в группе`, {
+					parse_mode: 'HTML',
+				})
+				return
+			}
+		} catch (error) {
+			// Если пользователь не найден в группе, это нормально - продолжаем
+			if (!error.message.includes('user not found')) {
+				throw error
+			}
+		}
+
 		// Сначала пытаемся отклонить заявку
 		try {
 			await ctx.telegram.declineChatJoinRequest(MONO_PITER_CHAT_ID, userId)
@@ -427,9 +448,26 @@ async function handleConfirmBan(ctx) {
 			}
 		}
 
+		// Получаем информацию о пользователе
+		let userInfo = `ID: ${userId}`
+		try {
+			const user = await ctx.telegram.getChatMember(MONO_PITER_CHAT_ID, userId)
+			userInfo = `<a href="tg://user?id=${userId}">${user.user.first_name} ${
+				user.user.last_name || ''
+			}</a>`
+		} catch (error) {
+			console.error('Ошибка при получении информации о пользователе:', error)
+		}
+
+		// Получаем информацию о том, кто забанил
+		const adminInfo = `<a href="tg://user?id=${ctx.from.id}">${
+			ctx.from.first_name
+		} ${ctx.from.last_name || ''}</a>`
+
 		await ctx.editMessageText(
-			`✅ Пользователь заблокирован в группе\n` +
-				`Заявка отклонена и пользователь уведомлен`,
+			`✅ Пользователь ${userInfo} заблокирован в группе\n` +
+				`Заявка отклонена и пользователь уведомлен\n` +
+				`👮‍♂️ Забанил: ${adminInfo}`,
 			{ parse_mode: 'HTML' }
 		)
 	} catch (error) {
