@@ -402,11 +402,16 @@ async function handleConfirmBan(ctx) {
 				userId
 			)
 
-			// Если пользователь уже забанен, выходим
+			// Если пользователь уже заблокирован, выходим
 			if (chatMember.status === 'kicked') {
-				await ctx.editMessageText(`ℹ️ Пользователь уже заблокирован в группе`, {
-					parse_mode: 'HTML',
-				})
+				await ctx.editMessageText(
+					`ℹ️ Пользователь <a href="tg://user?id=${userId}">${
+						chatMember.user.first_name
+					} ${chatMember.user.last_name || ''}</a> уже заблокирован в группе`,
+					{
+						parse_mode: 'HTML',
+					}
+				)
 				return
 			}
 		} catch (error) {
@@ -447,7 +452,6 @@ async function handleConfirmBan(ctx) {
 				)
 			}
 		}
-
 		// Получаем информацию о пользователе
 		let userInfo = `ID: ${userId}`
 		try {
