@@ -71,6 +71,12 @@ async function checkAndCancelExpiredRequests(bot) {
 		const canceledRequests = []
 		for (const request of expiredRequests) {
 			try {
+				// Проверяем, не была ли заявка уже отменена
+				if (request.status === 'expired') {
+					console.log(`ℹ️ Заявка ${request._id} уже отменена, пропускаем`)
+					continue
+				}
+
 				// Проверяем статус заявки в Telegram
 				try {
 					const chatMember = await bot.telegram.getChatMember(
@@ -262,6 +268,23 @@ async function checkAndCancelExpiredRequests(bot) {
 									status: 'expired',
 									updatedAt: new Date(),
 									reason: 'Заявка уже была отменена',
+								},
+							}
+						)
+						continue
+					}
+
+					// Обрабатываем ошибку USER_ID_INVALID
+					if (error.message.includes('USER_ID_INVALID')) {
+						// Обновляем статус в базе данных
+						await joinRequestsCollection.updateOne(
+							{ _id: request._id },
+							{
+								$set: {
+									status: 'expired',
+									updatedAt: new Date(),
+									reason:
+										'Пользователь недействителен (возможно удалил аккаунт)',
 								},
 							}
 						)
