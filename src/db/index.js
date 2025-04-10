@@ -4,10 +4,7 @@
  */
 
 const { MongoClient, ObjectId } = require('mongodb')
-const {
-	MONGO_URL,
-	DB_NAME,
-} = require('../config')
+const { MONGO_URL, DB_NAME } = require('../config')
 
 /** @type {import('mongodb').Db} */
 let db = null
@@ -216,6 +213,34 @@ async function getJoinRequestByUserId(userId) {
 	}
 }
 
+/**
+ * Сохраняет ID сообщения с кнопками для пользователя
+ * @async
+ * @param {string} userId - ID пользователя
+ * @param {number} messageId - ID сообщения с кнопками
+ * @returns {Promise<boolean>} - Результат операции
+ */
+async function saveUserButtonMessage(userId, messageId) {
+	try {
+		const joinRequestsCollection = db.collection('joinRequests')
+		const result = await joinRequestsCollection.updateOne(
+			{ userId: parseInt(userId, 10) },
+			{
+				$set: {
+					buttonMessageId: messageId,
+					updatedAt: new Date(),
+				},
+			},
+			{ sort: { createdAt: -1 } }
+		)
+
+		return result.modifiedCount > 0
+	} catch (error) {
+		console.error('Error saving button message ID:', error)
+		return false
+	}
+}
+
 module.exports = {
 	connectToDatabase,
 	closeDatabase,
@@ -226,4 +251,5 @@ module.exports = {
 	getJoinRequestByUserId,
 	updateJoinRequestStatusWithData,
 	getDb: () => db,
+	saveUserButtonMessage,
 }

@@ -406,10 +406,8 @@ ${message}
 				parse_mode: 'HTML',
 				reply_markup: {
 					inline_keyboard: [
-						[
-							{ text: '❓ Задать вопрос', callback_data: `ask_${userId}` },
-							{ text: '✅ Принять', callback_data: `accept_user:${userId}` },
-						],
+						[{ text: '✅ Принять', callback_data: `accept_user:${userId}` }],
+						[{ text: '❓ Задать вопрос', callback_data: `ask_${userId}` }]
 					],
 				},
 			}

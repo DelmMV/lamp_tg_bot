@@ -395,13 +395,21 @@ async function handleConfirmBan(ctx) {
 	const userId = ctx.callbackQuery.data.split(':')[1]
 
 	try {
-		// Сначала баним пользователя
+		// Сначала пытаемся отклонить заявку
+		try {
+			await ctx.telegram.declineChatJoinRequest(MONO_PITER_CHAT_ID, userId)
+		} catch (declineError) {
+			// Если ошибка HIDE_REQUESTER_MISSING, значит заявка уже была отклонена
+			// или пользователь заблокировал бота - это нормальная ситуация
+			if (!declineError.message.includes('HIDE_REQUESTER_MISSING')) {
+				throw declineError
+			}
+		}
+
+		// Затем баним пользователя
 		await ctx.telegram.banChatMember(MONO_PITER_CHAT_ID, userId)
 
-		// Затем отклоняем заявку
-		await ctx.telegram.declineChatJoinRequest(MONO_PITER_CHAT_ID, userId)
-
-		// Отправляем уведомление пользователю
+		// Пытаемся отправить уведомление пользователю
 		try {
 			await ctx.telegram.sendMessage(
 				userId,
@@ -410,10 +418,13 @@ async function handleConfirmBan(ctx) {
 				{ parse_mode: 'HTML' }
 			)
 		} catch (notifyError) {
-			console.error(
-				'Ошибка при отправке уведомления пользователю:',
-				notifyError
-			)
+			// Если пользователь заблокировал бота, это нормальная ситуация
+			if (!notifyError.message.includes('bot was blocked by the user')) {
+				console.error(
+					'Ошибка при отправке уведомления пользователю:',
+					notifyError
+				)
+			}
 		}
 
 		await ctx.editMessageText(
