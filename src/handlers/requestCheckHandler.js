@@ -130,6 +130,22 @@ async function checkAndCancelExpiredRequests(bot) {
 						continue
 					}
 
+					// Обрабатываем ошибку user is deactivated
+					if (error.message.includes('user is deactivated')) {
+						// Обновляем статус в базе данных
+						await joinRequestsCollection.updateOne(
+							{ _id: request._id },
+							{
+								$set: {
+									status: 'expired',
+									updatedAt: new Date(),
+									reason: 'Пользователь деактивировал аккаунт',
+								},
+							}
+						)
+						continue
+					}
+
 					// Для других ошибок
 					await joinRequestsCollection.updateOne(
 						{ _id: request._id },
@@ -285,6 +301,22 @@ async function checkAndCancelExpiredRequests(bot) {
 									updatedAt: new Date(),
 									reason:
 										'Пользователь недействителен (возможно удалил аккаунт)',
+								},
+							}
+						)
+						continue
+					}
+
+					// Обрабатываем ошибку user is deactivated
+					if (error.message.includes('user is deactivated')) {
+						// Обновляем статус в базе данных
+						await joinRequestsCollection.updateOne(
+							{ _id: request._id },
+							{
+								$set: {
+									status: 'expired',
+									updatedAt: new Date(),
+									reason: 'Пользователь деактивировал аккаунт',
 								},
 							}
 						)
