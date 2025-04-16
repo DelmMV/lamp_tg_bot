@@ -189,22 +189,31 @@ async function forwardMessageToAdmins(bot, ctx, from) {
 		const messageText =
 			ctx.message.text || ctx.message.caption || '[нет текста]'
 
-		// Если есть фото или видео, отправляем только медиа-файл с кнопкой
-		if (ctx.message.photo || ctx.message.video) {
-			
-			// Формируем подпись для медиа-файла
-			const mediaCaption = `
+		// Формируем подпись для медиа-файла
+		const mediaCaption = `
 📥 <b>Ответ от пользователя</b>
 
 👤 <b>Отправитель:</b> ${userLink}
 
 ${messageText !== '[нет текста]' ? `💬 <b>Сообщение:</b>\n${messageText}` : ''}
-            `.trim()
+        `.trim()
 
-			// Отправляем медиа-файл с кнопкой
-			const sentMsg = await bot.telegram.sendCopy(ADMIN_CHAT_ID, ctx.message, {
+		// Проверяем наличие различных типов медиа
+		const hasMedia =
+			ctx.message.photo ||
+			ctx.message.video ||
+			ctx.message.video_note ||
+			ctx.message.voice ||
+			ctx.message.audio ||
+			ctx.message.document
+
+		if (hasMedia) {
+			// Определяем тип медиа и соответствующий метод отправки
+			let mediaType = ''
+			let mediaFileId = ''
+			let sendMethod = null
+			let mediaOptions = {
 				message_thread_id: LAMP_THREAD_ID,
-				caption: mediaCaption,
 				parse_mode: 'HTML',
 				reply_markup: {
 					inline_keyboard: [
@@ -212,7 +221,42 @@ ${messageText !== '[нет текста]' ? `💬 <b>Сообщение:</b>\n${
 						[{ text: '❓ Задать вопрос', callback_data: `ask_${from.id}` }],
 					],
 				},
-			})
+			}
+
+			if (ctx.message.photo) {
+				mediaType = 'photo'
+				mediaFileId = ctx.message.photo[ctx.message.photo.length - 1].file_id
+				sendMethod = bot.telegram.sendPhoto
+				mediaOptions.caption = mediaCaption
+			} else if (ctx.message.video) {
+				mediaType = 'video'
+				mediaFileId = ctx.message.video.file_id
+				sendMethod = bot.telegram.sendVideo
+				mediaOptions.caption = mediaCaption
+			} else if (ctx.message.video_note) {
+				mediaType = 'video_note'
+				mediaFileId = ctx.message.video_note.file_id
+				sendMethod = bot.telegram.sendVideoNote
+				mediaOptions.caption = `📹 Видео-сообщение от ${userLink}`
+			} else if (ctx.message.voice) {
+				mediaType = 'voice'
+				mediaFileId = ctx.message.voice.file_id
+				sendMethod = bot.telegram.sendVoice
+				mediaOptions.caption = `🎤 Голосовое сообщение от ${userLink}`
+			} else if (ctx.message.audio) {
+				mediaType = 'audio'
+				mediaFileId = ctx.message.audio.file_id
+				sendMethod = bot.telegram.sendAudio
+				mediaOptions.caption = `🎵 Аудио от ${userLink}`
+			} else if (ctx.message.document) {
+				mediaType = 'document'
+				mediaFileId = ctx.message.document.file_id
+				sendMethod = bot.telegram.sendDocument
+				mediaOptions.caption = `📄 Документ от ${userLink}`
+			}
+
+			// Отправляем медиа-файл
+			const sentMsg = await sendMethod(ADMIN_CHAT_ID, mediaFileId, mediaOptions)
 
 			// Сохраняем ID сообщения с кнопками в БД
 			if (sentMsg) {
@@ -290,6 +334,7 @@ async function sendStandardResponseToUser(bot, from) {
  * @async
  * @param {Object} bot - Экземпляр бота Telegraf
  * @param {Object} ctx - Контекст сообщения Telegraf
+ * @returns {Promise<boolean>} - Результат обработки сообщения
  */
 async function handlePrivateMessage(bot, ctx) {
 	if (ctx.message.chat.type !== 'private') return false

@@ -13,6 +13,7 @@ const {
 	getJoinRequestByUserId,
 	addMessageToJoinRequest,
 	updateJoinRequestStatusWithData,
+	saveUserButtonMessage,
 } = require('../db')
 const {
 	ADMIN_CHAT_ID,
@@ -322,31 +323,21 @@ async function sendAdminQuestion(bot, ctx) {
  * @async
  * @param {Object} bot - Экземпляр бота Telegraf
  * @param {Object} ctx - Контекст сообщения Telegraf
- * @returns {Promise<boolean>} - Было ли сообщение обработано
+ * @returns {Promise<boolean>} - Результат обработки
  */
 async function handleUserReply(bot, ctx) {
 	// Проверяем, что сообщение пришло в личку боту
-	if (ctx.message.chat.type !== 'private') {
-		return false
-	}
+	if (ctx.message.chat.type !== 'private') return false
 
-	const userId = ctx.from.id
+	const { from } = ctx.message
+	const userId = from.id
 
 	try {
-		console.log(`📨 Получено сообщение от пользователя ${userId} в личном чате`)
-
-		// Получаем информацию о заявке
-		let joinRequest = null
-		try {
-			joinRequest = await getJoinRequestByUserId(userId)
-		} catch (dbError) {
-			console.error('❌ Ошибка при получении данных о заявке:', dbError)
-			return false // При ошибке БД передаем обработку дальше
-		}
-
+		// Получаем информацию о заявке пользователя
+		const joinRequest = await getJoinRequestByUserId(userId)
 		if (!joinRequest) {
-			console.log(`❌ Заявка для пользователя ${userId} не найдена`)
-			return false // Нет заявки
+			console.log(`⚠️ Заявка пользователя ${userId} не найдена`)
+			return false
 		}
 
 		// Проверяем статус заявки
@@ -388,39 +379,130 @@ async function handleUserReply(bot, ctx) {
 			joinRequest.firstName
 		} ${joinRequest.lastName || ''}</a>`
 
-		// Отправляем ответ администраторам
-		const adminMessage = `
-💬 <b>Ответ от пользователя ${userLink}:</b>
-${message}
-    `.trim()
+		// Проверяем наличие различных типов медиа
+		const hasMedia =
+			ctx.message.photo ||
+			ctx.message.video ||
+			ctx.message.video_note ||
+			ctx.message.voice ||
+			ctx.message.audio ||
+			ctx.message.document
 
-		console.log(`📤 Отправка ответа пользователя администраторам`)
-
-		// Отправляем сообщение с кнопкой вопроса
-		const sentMsg = await sendTelegramMessage(
-			bot,
-			ADMIN_CHAT_ID,
-			adminMessage,
-			{
+		if (hasMedia) {
+			// Определяем тип медиа и соответствующий метод отправки
+			let mediaType = ''
+			let mediaFileId = ''
+			let mediaOptions = {
 				message_thread_id: LAMP_THREAD_ID,
 				parse_mode: 'HTML',
 				reply_markup: {
 					inline_keyboard: [
 						[{ text: '✅ Принять', callback_data: `accept_user:${userId}` }],
-						[{ text: '❓ Задать вопрос', callback_data: `ask_${userId}` }]
+						[{ text: '❓ Задать вопрос', callback_data: `ask_${userId}` }],
 					],
 				},
 			}
-		)
 
-		// Если пользователь отправил фото или видео, пересылаем их
-		if (ctx.message.photo || ctx.message.video) {
-			console.log('📷 Пересылка медиа от пользователя администраторам')
-			await bot.telegram.sendCopy(ADMIN_CHAT_ID, ctx.message, {
-				message_thread_id: LAMP_THREAD_ID,
-				caption: `Медиа от пользователя ${userLink}`,
-				parse_mode: 'HTML',
-			})
+			try {
+				if (ctx.message.photo) {
+					mediaType = 'photo'
+					mediaFileId = ctx.message.photo[ctx.message.photo.length - 1].file_id
+					mediaOptions.caption = `📸 Фото от ${userLink}`
+					const sentMsg = await bot.telegram.sendPhoto(
+						ADMIN_CHAT_ID,
+						mediaFileId,
+						mediaOptions
+					)
+					if (sentMsg) await saveUserButtonMessage(userId, sentMsg.message_id)
+				} else if (ctx.message.video) {
+					mediaType = 'video'
+					mediaFileId = ctx.message.video.file_id
+					mediaOptions.caption = `🎥 Видео от ${userLink}`
+					const sentMsg = await bot.telegram.sendVideo(
+						ADMIN_CHAT_ID,
+						mediaFileId,
+						mediaOptions
+					)
+					if (sentMsg) await saveUserButtonMessage(userId, sentMsg.message_id)
+				} else if (ctx.message.video_note) {
+					mediaType = 'video_note'
+					mediaFileId = ctx.message.video_note.file_id
+					mediaOptions.caption = `📹 Видео-сообщение от ${userLink}`
+					const sentMsg = await bot.telegram.sendVideoNote(
+						ADMIN_CHAT_ID,
+						mediaFileId,
+						mediaOptions
+					)
+					if (sentMsg) await saveUserButtonMessage(userId, sentMsg.message_id)
+				} else if (ctx.message.voice) {
+					mediaType = 'voice'
+					mediaFileId = ctx.message.voice.file_id
+					mediaOptions.caption = `🎤 Голосовое сообщение от ${userLink}`
+					const sentMsg = await bot.telegram.sendVoice(
+						ADMIN_CHAT_ID,
+						mediaFileId,
+						mediaOptions
+					)
+					if (sentMsg) await saveUserButtonMessage(userId, sentMsg.message_id)
+				} else if (ctx.message.audio) {
+					mediaType = 'audio'
+					mediaFileId = ctx.message.audio.file_id
+					mediaOptions.caption = `🎵 Аудио от ${userLink}`
+					const sentMsg = await bot.telegram.sendAudio(
+						ADMIN_CHAT_ID,
+						mediaFileId,
+						mediaOptions
+					)
+					if (sentMsg) await saveUserButtonMessage(userId, sentMsg.message_id)
+				} else if (ctx.message.document) {
+					mediaType = 'document'
+					mediaFileId = ctx.message.document.file_id
+					mediaOptions.caption = `📄 Документ от ${userLink}`
+					const sentMsg = await bot.telegram.sendDocument(
+						ADMIN_CHAT_ID,
+						mediaFileId,
+						mediaOptions
+					)
+					if (sentMsg) await saveUserButtonMessage(userId, sentMsg.message_id)
+				}
+			} catch (mediaError) {
+				console.error('❌ Ошибка при отправке медиафайла:', mediaError)
+				// Отправляем уведомление об ошибке администраторам
+				await sendTelegramMessage(
+					bot,
+					ADMIN_CHAT_ID,
+					`⚠️ <b>Ошибка при отправке медиафайла от ${userLink}</b>:\n${mediaError.message}`,
+					{ message_thread_id: LAMP_THREAD_ID, parse_mode: 'HTML' }
+				)
+			}
+		} else {
+			// Если нет медиа-файла, отправляем текстовое сообщение
+			const adminMessage = `
+💬 <b>Ответ от пользователя ${userLink}:</b>
+${message}
+            `.trim()
+
+			// Отправляем сообщение с кнопкой вопроса
+			const sentMsg = await sendTelegramMessage(
+				bot,
+				ADMIN_CHAT_ID,
+				adminMessage,
+				{
+					message_thread_id: LAMP_THREAD_ID,
+					parse_mode: 'HTML',
+					reply_markup: {
+						inline_keyboard: [
+							[{ text: '✅ Принять', callback_data: `accept_user:${userId}` }],
+							[{ text: '❓ Задать вопрос', callback_data: `ask_${userId}` }],
+						],
+					},
+				}
+			)
+
+			// Сохраняем ID сообщения с кнопками в БД
+			if (sentMsg) {
+				await saveUserButtonMessage(userId, sentMsg.message_id)
+			}
 		}
 
 		console.log(`✅ Ответ пользователя успешно обработан`)
