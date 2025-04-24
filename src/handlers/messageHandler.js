@@ -211,7 +211,6 @@ ${messageText !== '[нет текста]' ? `💬 <b>Сообщение:</b>\n${
 			// Определяем тип медиа и соответствующий метод отправки
 			let mediaType = ''
 			let mediaFileId = ''
-			let sendMethod = null
 			let mediaOptions = {
 				message_thread_id: LAMP_THREAD_ID,
 				parse_mode: 'HTML',
@@ -226,41 +225,63 @@ ${messageText !== '[нет текста]' ? `💬 <b>Сообщение:</b>\n${
 			if (ctx.message.photo) {
 				mediaType = 'photo'
 				mediaFileId = ctx.message.photo[ctx.message.photo.length - 1].file_id
-				sendMethod = bot.telegram.sendPhoto
 				mediaOptions.caption = mediaCaption
+				const sentMsg = await ctx.telegram.sendPhoto(
+					ADMIN_CHAT_ID,
+					mediaFileId,
+					mediaOptions
+				)
+				if (sentMsg) await saveUserButtonMessage(from.id, sentMsg.message_id)
 			} else if (ctx.message.video) {
 				mediaType = 'video'
 				mediaFileId = ctx.message.video.file_id
-				sendMethod = bot.telegram.sendVideo
 				mediaOptions.caption = mediaCaption
+				const sentMsg = await ctx.telegram.sendVideo(
+					ADMIN_CHAT_ID,
+					mediaFileId,
+					mediaOptions
+				)
+				if (sentMsg) await saveUserButtonMessage(from.id, sentMsg.message_id)
 			} else if (ctx.message.video_note) {
 				mediaType = 'video_note'
 				mediaFileId = ctx.message.video_note.file_id
-				sendMethod = bot.telegram.sendVideoNote
 				mediaOptions.caption = `📹 Видео-сообщение от ${userLink}`
+				const sentMsg = await ctx.telegram.sendVideoNote(
+					ADMIN_CHAT_ID,
+					mediaFileId,
+					mediaOptions
+				)
+				if (sentMsg) await saveUserButtonMessage(from.id, sentMsg.message_id)
 			} else if (ctx.message.voice) {
 				mediaType = 'voice'
 				mediaFileId = ctx.message.voice.file_id
-				sendMethod = bot.telegram.sendVoice
 				mediaOptions.caption = `🎤 Голосовое сообщение от ${userLink}`
+				const sentMsg = await ctx.telegram.sendVoice(
+					ADMIN_CHAT_ID,
+					mediaFileId,
+					mediaOptions
+				)
+				if (sentMsg) await saveUserButtonMessage(from.id, sentMsg.message_id)
 			} else if (ctx.message.audio) {
 				mediaType = 'audio'
 				mediaFileId = ctx.message.audio.file_id
-				sendMethod = bot.telegram.sendAudio
 				mediaOptions.caption = `🎵 Аудио от ${userLink}`
+				const sentMsg = await ctx.telegram.sendAudio(
+					ADMIN_CHAT_ID,
+					mediaFileId,
+					mediaOptions
+				)
+				if (sentMsg) await saveUserButtonMessage(from.id, sentMsg.message_id)
 			} else if (ctx.message.document) {
 				mediaType = 'document'
 				mediaFileId = ctx.message.document.file_id
-				sendMethod = bot.telegram.sendDocument
 				mediaOptions.caption = `📄 Документ от ${userLink}`
-			}
-
-			// Отправляем медиа-файл
-			const sentMsg = await sendMethod(ADMIN_CHAT_ID, mediaFileId, mediaOptions)
-
-			// Сохраняем ID сообщения с кнопками в БД
-			if (sentMsg) {
-				await saveUserButtonMessage(from.id, sentMsg.message_id)
+				const sentMsg = await ctx.telegram.sendDocument(
+					ADMIN_CHAT_ID,
+					mediaFileId,
+					mediaOptions
+				)
+				if (sentMsg) await saveUserButtonMessage(from.id, sentMsg.message_id)
 			}
 		} else {
 			// Если нет медиа-файла, отправляем текстовое сообщение
