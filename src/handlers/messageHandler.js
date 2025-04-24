@@ -17,6 +17,7 @@ const {
 	LAMP_THREAD_ID,
 } = require('../config')
 const { handleMediaGroup, handleSingleMessage } = require('./mediaHandler')
+const MOTIVATIONAL_QUOTES = require('../data/quotes')
 
 /**
  * Обрабатывает команду удаления комментария
@@ -98,9 +99,15 @@ async function checkForbiddenWords(bot, ctx) {
 		if (result.found) {
 			const messageLink = `https://t.me/${ctx.message.chat.username}/${ctx.message.message_thread_id}/${ctx.message.message_id}`
 
+			// Получаем случайную цитату
+			const randomQuote =
+				MOTIVATIONAL_QUOTES[
+					Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)
+				]
+
 			// Ответ пользователю
 			await ctx.reply(
-				`Ваше сообщение содержит недопустимое слово: <tg-spoiler>${result.word}</tg-spoiler>. Пожалуйста соблюдайте культуру общения нашего сообщества.`,
+				`Ваше сообщение содержит недопустимое слово: <tg-spoiler>${result.word}</tg-spoiler>\nПожалуйста, соблюдайте культуру общения нашего сообщества.\n\n💭 <i>${randomQuote}</i>`,
 				{
 					reply_to_message_id: ctx.message.message_id,
 					parse_mode: 'HTML',
