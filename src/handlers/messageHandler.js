@@ -6,6 +6,7 @@
 const { containsForbiddenWords } = require('../utils/contentFilter')
 const { sendTelegramMessage } = require('../utils/messaging')
 const { hasMediaHashtag } = require('../utils/helpers')
+const { checkUserBan } = require('../utils/userBan')
 const {
 	deleteComment,
 	getJoinRequestByUserId,
@@ -372,6 +373,19 @@ async function handlePrivateMessage(bot, ctx) {
 
 	try {
 		console.log(`📩 Обработка личного сообщения от пользователя ${userId}`)
+
+		// Проверяем, не забанен ли пользователь
+		const isBanned = await checkUserBan(userId)
+		if (isBanned) {
+			console.log(`🚫 Пользователь ${userId} забанен, игнорируем сообщение`)
+			await sendTelegramMessage(
+				bot,
+				userId,
+				`⚠️ <b>Вы заблокированы в группе</b>\n`,
+				{ parse_mode: 'HTML' }
+			)
+			return true
+		}
 
 		// Проверяем, есть ли заявка (любого статуса)
 		let joinRequest = null

@@ -4,6 +4,7 @@
  */
 
 const { sendTelegramMessage } = require('../utils/messaging')
+const { checkUserBan } = require('../utils/userBan')
 const {
 	logError,
 	isUserAccessError,
@@ -333,6 +334,19 @@ async function handleUserReply(bot, ctx) {
 	const userId = from.id
 
 	try {
+		// Проверяем, не забанен ли пользователь
+		const isBanned = await checkUserBan(userId)
+		if (isBanned) {
+			console.log(`🚫 Пользователь ${userId} забанен, игнорируем сообщение`)
+			await sendTelegramMessage(
+				bot,
+				userId,
+				`⚠️ <b>Вы заблокированы в группе</b>\n`,
+				{ parse_mode: 'HTML' }
+			)
+			return true
+		}
+
 		// Получаем информацию о заявке пользователя
 		const joinRequest = await getJoinRequestByUserId(userId)
 		if (!joinRequest) {

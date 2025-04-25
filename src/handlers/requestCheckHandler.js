@@ -12,6 +12,7 @@ const {
 	MONO_PITER_CHAT_ID,
 	JOIN_REQUEST,
 } = require('../config')
+const { banUser } = require('../db')
 
 // Добавляем константы для кнопок
 const BAN_BUTTON = 'ban_user'
@@ -467,12 +468,14 @@ async function handleConfirmBan(ctx) {
 		// Затем баним пользователя
 		await ctx.telegram.banChatMember(MONO_PITER_CHAT_ID, userId)
 
+		// Сохраняем информацию о бане в БД
+		await banUser(userId, ctx.from.id, 'Забанен администратором')
+
 		// Пытаемся отправить уведомление пользователю
 		try {
 			await ctx.telegram.sendMessage(
 				userId,
-				`⚠️ <b>Ваша заявка на вступление в группу отклонена</b>\n\n` +
-					`Вы заблокированы в группе.`,
+				`⚠️ <b>Вы заблокированы в группе</b>\n`,
 				{ parse_mode: 'HTML' }
 			)
 		} catch (notifyError) {
@@ -484,6 +487,7 @@ async function handleConfirmBan(ctx) {
 				)
 			}
 		}
+
 		// Получаем информацию о пользователе
 		let userInfo = `ID: ${userId}`
 		try {

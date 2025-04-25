@@ -241,6 +241,66 @@ async function saveUserButtonMessage(userId, messageId) {
 	}
 }
 
+/**
+ * Добавляет пользователя в список забаненных
+ * @async
+ * @param {string} userId - ID пользователя
+ * @param {string} adminId - ID администратора, который забанил
+ * @param {string} reason - Причина бана
+ * @returns {Promise<boolean>} - Результат операции
+ */
+async function banUser(userId, adminId, reason) {
+	try {
+		const bannedUsersCollection = db.collection('bannedUsers')
+		const joinRequestsCollection = db.collection('joinRequests')
+
+		// Добавляем пользователя в список забаненных
+		const banResult = await bannedUsersCollection.insertOne({
+			userId: parseInt(userId, 10),
+			adminId: parseInt(adminId, 10),
+			reason: reason,
+			bannedAt: new Date(),
+		})
+
+		// Обновляем статус заявки пользователя
+		const updateResult = await joinRequestsCollection.updateOne(
+			{ userId: parseInt(userId, 10) },
+			{
+				$set: {
+					status: 'banned',
+					reason: reason,
+					updatedAt: new Date(),
+				},
+			},
+			{ sort: { createdAt: -1 } }
+		)
+
+		return banResult.insertedId !== null && updateResult.modifiedCount > 0
+	} catch (error) {
+		console.error('Error banning user:', error)
+		return false
+	}
+}
+
+/**
+ * Проверяет, забанен ли пользователь
+ * @async
+ * @param {string} userId - ID пользователя
+ * @returns {Promise<Object|null>} - Данные о бане или null
+ */
+async function isUserBanned(userId) {
+	try {
+		const bannedUsersCollection = db.collection('bannedUsers')
+		return await bannedUsersCollection.findOne(
+			{ userId: parseInt(userId, 10) },
+			{ sort: { bannedAt: -1 } }
+		)
+	} catch (error) {
+		console.error('Error checking if user is banned:', error)
+		return null
+	}
+}
+
 module.exports = {
 	connectToDatabase,
 	closeDatabase,
@@ -252,4 +312,6 @@ module.exports = {
 	updateJoinRequestStatusWithData,
 	getDb: () => db,
 	saveUserButtonMessage,
+	banUser,
+	isUserBanned,
 }
