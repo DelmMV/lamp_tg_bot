@@ -51,6 +51,10 @@ const {
 	handleConfirmAccept,
 	handleCancelAccept,
 } = require('./handlers/requestCheckHandler')
+const { handleSummaryCommand } = require('./handlers/summaryHandler')
+const { storeMessage } = require('./utils/chatStorage')
+const { generateChatSummary, sendSummaryToAdmin } = require('./utils/gemini')
+const { getLast24HoursMessages } = require('./utils/chatStorage')
 
 // Глобальная переменная для хранения экземпляра бота
 let bot = null
@@ -79,6 +83,9 @@ function setupCommandHandlers(botInstance) {
 		// Обработчики команд
 		botInstance.command('delete', ctx => handleDeleteCommand(botInstance, ctx))
 		botInstance.command('alarm', ctx => handleAlarmCommand(botInstance, ctx))
+		botInstance.command('summary', ctx =>
+			handleSummaryCommand(botInstance, ctx)
+		)
 		console.log('✅ Обработчики команд настроены')
 	} catch (error) {
 		console.error('❌ Ошибка при настройке обработчиков команд:', error)
@@ -284,6 +291,9 @@ function setupMessageHandler(botInstance) {
 	try {
 		botInstance.on('message', async ctx => {
 			try {
+				// Сохраняем сообщение
+				storeMessage(ctx.message)
+
 				// Проверяем, является ли сообщение личным
 				if (ctx.message.chat.type === 'private') {
 					const messagePreview = ctx.message.text
@@ -502,6 +512,49 @@ async function safeShutdown(signal) {
 	}
 }
 
+// Функция для автоматической отправки сводки
+async function sendDailySummary(bot) {
+	try {
+		// Получаем ID чата для мониторинга из константы MONO_PITER_CHAT_ID
+		const messages = await getLast24HoursMessages(MONO_PITER_CHAT_ID)
+		if (messages.length === 0) return
+
+		// Генерируем сводку
+		const summary = await generateChatSummary(messages)
+
+		// Формируем заголовок
+		const title = `📊 <b>Ежедневная сводка чата</b>\n\n`
+
+		// Отправляем сводку
+		await sendTelegramMessage(bot, ADMIN_CHAT_ID, title + summary, {
+			message_thread_id: LAMP_THREAD_ID,
+			parse_mode: 'HTML',
+		})
+	} catch (error) {
+		console.error('❌ Ошибка при отправке ежедневной сводки:', error)
+	}
+}
+
+// Настройка таймера для ежедневной отправки сводки
+function setupDailySummaryTimer(bot) {
+	// Вычисляем время до следующей полночи
+	const now = new Date()
+	const tomorrow = new Date(now)
+	tomorrow.setDate(tomorrow.getDate() + 1)
+	tomorrow.setHours(0, 0, 0, 0)
+
+	const timeUntilMidnight = tomorrow - now
+
+	// Устанавливаем таймер на полночь
+	setTimeout(() => {
+		sendDailySummary(bot)
+		// Устанавливаем повторение каждые 24 часа
+		setInterval(() => sendDailySummary(bot), 24 * 60 * 60 * 1000)
+	}, timeUntilMidnight)
+
+	console.log('✅ Таймер ежедневной сводки настроен')
+}
+
 /**
  * Запускает бота
  * @async
@@ -532,6 +585,9 @@ async function startBot() {
 
 		// Запускаем таймер проверки заявок
 		startRequestCheckTimer(bot)
+
+		// Настраиваем таймер ежедневной сводки
+		setupDailySummaryTimer(bot)
 
 		// Запускаем бота
 		await bot.launch()
