@@ -1,4 +1,4 @@
-const { generateChatSummary, sendSummaryToAdmin } = require('../utils/gemini')
+const { generateChatSummary } = require('../utils/gemini')
 const {
 	getLast24HoursMessages,
 	getMessagesByDateRange,

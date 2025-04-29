@@ -3,7 +3,7 @@
  * @module handlers/requestCheckHandler
  */
 
-const { MongoClient, ObjectId } = require('mongodb')
+const { MongoClient } = require('mongodb')
 const {
 	MONGO_URL,
 	DB_NAME,
