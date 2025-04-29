@@ -403,48 +403,205 @@ function stopRequestCheckTimer() {
 async function handleBanButton(ctx) {
 	const userId = ctx.callbackQuery.data.split(':')[1]
 
-	// Отправляем новое сообщение с подтверждением
-	await ctx.reply(
-		`⚠️ <b>Подтверждение бана</b>\n\n` +
-			`Вы уверены, что хотите забанить пользователя? Это действие необратимо.`,
-		{
-			parse_mode: 'HTML',
-			reply_markup: {
-				inline_keyboard: [
-					[
-						{
-							text: '❌ Точно забанить',
-							callback_data: `${CONFIRM_BAN_BUTTON}:${userId}`,
-						},
-						{ text: '✅ Нет', callback_data: `${CANCEL_BAN_BUTTON}:${userId}` },
+	try {
+		// Получаем текущее сообщение
+		const message = ctx.callbackQuery.message
+
+		// Если это видео-кружок, используем другой подход
+		if (message.video_note) {
+			// Получаем ID видео-кружка
+			const videoNoteFileId = message.video_note.file_id
+
+			// Формируем текст для сообщения
+			const userName = message.from
+				? `${message.from.first_name} ${message.from.last_name || ''}`
+				: 'пользователя'
+			const text = `📹 Видео-сообщение от ${userName}`
+
+			// Удаляем оригинальное сообщение
+			await ctx.deleteMessage()
+
+			// Отправляем кружок
+			await ctx.telegram.sendVideoNote(message.chat.id, videoNoteFileId)
+
+			// Отправляем новое сообщение с текстом и кнопками
+			await ctx.telegram.sendMessage(message.chat.id, text, {
+				parse_mode: 'HTML',
+				reply_markup: {
+					inline_keyboard: [
+						[
+							{
+								text: '❌ Забанить',
+								callback_data: `${CONFIRM_BAN_BUTTON}:${userId}`,
+							},
+							{
+								text: '✅ Отмена',
+								callback_data: `${CANCEL_BAN_BUTTON}:${userId}`,
+							},
+						],
 					],
-				],
-			},
+				},
+			})
+
+			return
 		}
-	)
+
+		// Получаем текущий текст сообщения
+		let currentText = message.text || message.caption || ''
+
+		// Если текст пустой, добавляем сообщение о типе медиа
+		if (!currentText) {
+			if (message.video) {
+				currentText = '📹 Видео-сообщение'
+			} else if (message.photo) {
+				currentText = '🖼 Фото-сообщение'
+			} else if (message.voice) {
+				currentText = '🎤 Голосовое сообщение'
+			} else if (message.audio) {
+				currentText = '🎵 Аудио-сообщение'
+			} else if (message.document) {
+				currentText = '📄 Документ'
+			} else {
+				currentText = '📝 Сообщение'
+			}
+
+			// Добавляем информацию об отправителе, если она доступна
+			if (message.from) {
+				currentText += ` от ${message.from.first_name} ${
+					message.from.last_name || ''
+				}`
+			}
+		}
+
+		// Проверяем, есть ли в сообщении медиа
+		if (
+			message.photo ||
+			message.video ||
+			message.document ||
+			message.audio ||
+			message.voice
+		) {
+			// Для сообщений с медиа используем editMessageCaption
+			await ctx.editMessageCaption(currentText, {
+				parse_mode: 'HTML',
+				reply_markup: {
+					inline_keyboard: [
+						[
+							{
+								text: '❌ Забанить',
+								callback_data: `${CONFIRM_BAN_BUTTON}:${userId}`,
+							},
+							{
+								text: '✅ Отмена',
+								callback_data: `${CANCEL_BAN_BUTTON}:${userId}`,
+							},
+						],
+					],
+				},
+			})
+		} else {
+			// Для текстовых сообщений используем editMessageText
+			await ctx.editMessageText(currentText, {
+				parse_mode: 'HTML',
+				reply_markup: {
+					inline_keyboard: [
+						[
+							{
+								text: '❌ Забанить',
+								callback_data: `${CONFIRM_BAN_BUTTON}:${userId}`,
+							},
+							{
+								text: '✅ Отмена',
+								callback_data: `${CANCEL_BAN_BUTTON}:${userId}`,
+							},
+						],
+					],
+				},
+			})
+		}
+	} catch (error) {
+		console.error(
+			'Ошибка при обновлении сообщения для подтверждения бана:',
+			error
+		)
+		// Сообщаем о проблеме в оригинальном сообщении
+		await ctx.answerCbQuery('Ошибка при обновлении сообщения: ' + error.message)
+	}
 }
 
 async function handleConfirmBan(ctx) {
 	const userId = ctx.callbackQuery.data.split(':')[1]
 
 	try {
+		// Получаем исходное сообщение
+		const message = ctx.callbackQuery.message
+
+		// Получаем текст сообщения
+		let originalText = message.text || message.caption || ''
+
+		// Если текст пустой, добавляем сообщение о типе медиа
+		if (!originalText) {
+			if (message.video) {
+				originalText = '📹 Видео-сообщение'
+			} else if (message.photo) {
+				originalText = '🖼 Фото-сообщение'
+			} else if (message.video_note) {
+				originalText = '⚪ Видео-кружок'
+			} else if (message.voice) {
+				originalText = '🎤 Голосовое сообщение'
+			} else if (message.audio) {
+				originalText = '🎵 Аудио-сообщение'
+			} else if (message.document) {
+				originalText = '📄 Документ'
+			} else {
+				originalText = '📝 Сообщение'
+			}
+
+			// Добавляем информацию об отправителе, если она доступна
+			if (message.from) {
+				originalText += ` от ${message.from.first_name} ${
+					message.from.last_name || ''
+				}`
+			}
+		}
+
+		// Выводим в лог для дебага
+		console.log('Текст перед баном:', originalText)
+
 		// Проверяем статус пользователя в группе
+		let userIsAlreadyBanned = false
+		let userInfo = `ID: ${userId}`
+
 		try {
 			const chatMember = await ctx.telegram.getChatMember(
 				MONO_PITER_CHAT_ID,
 				userId
 			)
 
+			// Сохраняем информацию о пользователе
+			userInfo = `<a href="tg://user?id=${userId}">${
+				chatMember.user.first_name
+			} ${chatMember.user.last_name || ''}</a>`
+
 			// Если пользователь уже заблокирован, выходим
 			if (chatMember.status === 'kicked') {
-				await ctx.editMessageText(
-					`ℹ️ Пользователь <a href="tg://user?id=${userId}">${
-						chatMember.user.first_name
-					} ${chatMember.user.last_name || ''}</a> уже заблокирован в группе`,
-					{
-						parse_mode: 'HTML',
-					}
-				)
+				userIsAlreadyBanned = true
+				const banText = `\n\nℹ️ Пользователь ${userInfo} уже заблокирован в группе`
+				const newText = originalText + banText
+
+				// Обновляем сообщение, сохраняя исходный текст
+				if (
+					message.photo ||
+					message.video ||
+					message.document ||
+					message.audio ||
+					message.voice ||
+					message.video_note
+				) {
+					await ctx.editMessageCaption(newText, { parse_mode: 'HTML' })
+				} else {
+					await ctx.editMessageText(newText, { parse_mode: 'HTML' })
+				}
 				return
 			}
 		} catch (error) {
@@ -453,6 +610,8 @@ async function handleConfirmBan(ctx) {
 				throw error
 			}
 		}
+
+		if (userIsAlreadyBanned) return
 
 		// Сначала пытаемся отклонить заявку
 		try {
@@ -488,73 +647,361 @@ async function handleConfirmBan(ctx) {
 			}
 		}
 
-		// Получаем информацию о пользователе
-		let userInfo = `ID: ${userId}`
-		try {
-			const user = await ctx.telegram.getChatMember(MONO_PITER_CHAT_ID, userId)
-			userInfo = `<a href="tg://user?id=${userId}">${user.user.first_name} ${
-				user.user.last_name || ''
-			}</a>`
-		} catch (error) {
-			console.error('Ошибка при получении информации о пользователе:', error)
-		}
-
 		// Получаем информацию о том, кто забанил
 		const adminInfo = `<a href="tg://user?id=${ctx.from.id}">${
 			ctx.from.first_name
 		} ${ctx.from.last_name || ''}</a>`
 
-		await ctx.editMessageText(
-			`✅ Пользователь ${userInfo} заблокирован в группе\n` +
-				`Заявка отклонена и пользователь уведомлен\n` +
-				`👮‍♂️ Забанил: ${adminInfo}`,
-			{ parse_mode: 'HTML' }
-		)
+		// Добавляем информацию о бане к исходному сообщению
+		const banText =
+			`\n\n❌ <b>Пользователь ${userInfo} заблокирован в группе</b>\n` +
+			`Заявка отклонена и пользователь уведомлен\n` +
+			`👮‍♂️ Забанил: ${adminInfo}`
+
+		const newText = originalText + banText
+
+		// Обновляем сообщение, сохраняя исходный текст
+		if (
+			message.photo ||
+			message.video ||
+			message.document ||
+			message.audio ||
+			message.voice ||
+			message.video_note
+		) {
+			// Для сообщений с медиа используем editMessageCaption
+			await ctx.editMessageCaption(newText, {
+				parse_mode: 'HTML',
+			})
+		} else {
+			// Для текстовых сообщений используем editMessageText
+			await ctx.editMessageText(newText, {
+				parse_mode: 'HTML',
+			})
+		}
 	} catch (error) {
+		// Получаем исходное сообщение для обработки ошибок
+		const message = ctx.callbackQuery.message
+		let originalText = message.text || message.caption || ''
+
+		// Если текст пустой, добавляем сообщение о типе медиа
+		if (!originalText) {
+			if (message.video) {
+				originalText = '📹 Видео-сообщение'
+			} else if (message.photo) {
+				originalText = '🖼 Фото-сообщение'
+			} else if (message.video_note) {
+				originalText = '⚪ Видео-кружок'
+			} else if (message.voice) {
+				originalText = '🎤 Голосовое сообщение'
+			} else if (message.audio) {
+				originalText = '🎵 Аудио-сообщение'
+			} else if (message.document) {
+				originalText = '📄 Документ'
+			} else {
+				originalText = '📝 Сообщение'
+			}
+
+			// Добавляем информацию об отправителе, если она доступна
+			if (message.from) {
+				originalText += ` от ${message.from.first_name} ${
+					message.from.last_name || ''
+				}`
+			}
+		}
+
+		// Добавляем информацию об ошибке к исходному сообщению
+		const errorText = `\n\n❌ <b>Произошла ошибка при блокировке пользователя:</b> ${error.message}`
+		const newText = originalText + errorText
+
 		console.error('Ошибка при блокировке пользователя:', error)
-		await ctx.editMessageText(
-			`❌ Произошла ошибка при блокировке пользователя: ${error.message}`,
-			{ parse_mode: 'HTML' }
-		)
+
+		// Обновляем сообщение, сохраняя исходный текст
+		try {
+			if (
+				message.photo ||
+				message.video ||
+				message.document ||
+				message.audio ||
+				message.voice ||
+				message.video_note
+			) {
+				// Для сообщений с медиа используем editMessageCaption
+				await ctx.editMessageCaption(newText, {
+					parse_mode: 'HTML',
+				})
+			} else {
+				// Для текстовых сообщений используем editMessageText
+				await ctx.editMessageText(newText, {
+					parse_mode: 'HTML',
+				})
+			}
+		} catch (updateError) {
+			console.error('Ошибка при обновлении сообщения с ошибкой:', updateError)
+		}
 	}
 }
 
 async function handleCancelBan(ctx) {
-	await ctx.editMessageText(`✅ Действие отменено`, { parse_mode: 'HTML' })
+	try {
+		// Получаем текущее сообщение
+		const message = ctx.callbackQuery.message
+
+		// Получаем ID пользователя из callback_data
+		const userId = ctx.callbackQuery.data.split(':')[1]
+
+		// Получаем текущий текст сообщения
+		let currentText = message.text || message.caption || ''
+
+		// Если текст пустой, добавляем сообщение о типе медиа
+		if (!currentText) {
+			if (message.video) {
+				currentText = '📹 Видео-сообщение'
+			} else if (message.photo) {
+				currentText = '🖼 Фото-сообщение'
+			} else if (message.voice) {
+				currentText = '🎤 Голосовое сообщение'
+			} else if (message.audio) {
+				currentText = '🎵 Аудио-сообщение'
+			} else if (message.document) {
+				currentText = '📄 Документ'
+			} else {
+				currentText = '📝 Сообщение'
+			}
+
+			// Добавляем информацию об отправителе, если она доступна
+			if (message.from) {
+				currentText += ` от ${message.from.first_name} ${
+					message.from.last_name || ''
+				}`
+			}
+		}
+
+		// Проверяем, есть ли в сообщении медиа
+		if (
+			message.photo ||
+			message.video ||
+			message.document ||
+			message.audio ||
+			message.voice
+		) {
+			// Для сообщений с медиа используем editMessageCaption
+			await ctx.editMessageCaption(currentText, {
+				parse_mode: 'HTML',
+				reply_markup: {
+					inline_keyboard: [
+						[
+							{
+								text: '❌ Бан',
+								callback_data: `${BAN_BUTTON}:${userId}`,
+							},
+						],
+						[
+							{
+								text: '❓ Задать вопрос',
+								callback_data: `ask_${userId}`,
+							},
+						],
+					],
+				},
+			})
+		} else {
+			// Для текстовых сообщений используем editMessageText
+			await ctx.editMessageText(currentText, {
+				parse_mode: 'HTML',
+				reply_markup: {
+					inline_keyboard: [
+						[
+							{
+								text: '❓ Задать вопрос',
+								callback_data: `ask_${userId}`,
+							},
+							{
+								text: '❌ Бан',
+								callback_data: `${BAN_BUTTON}:${userId}`,
+							},
+						]
+					],
+				},
+			})
+		}
+
+		await ctx.answerCbQuery('Отменено')
+	} catch (error) {
+		console.error('Ошибка при отмене бана:', error)
+		await ctx.answerCbQuery('Ошибка при отмене: ' + error.message)
+	}
 }
 
 // Добавляем обработчики для кнопок принятия
 async function handleAcceptButton(ctx) {
 	const userId = ctx.callbackQuery.data.split(':')[1]
 
-	// Отправляем новое сообщение с подтверждением
-	await ctx.reply(
-		`⚠️ <b>Подтверждение принятия</b>\n\n` +
-			`Вы уверены, что хотите принять пользователя в группу?`,
-		{
-			parse_mode: 'HTML',
-			reply_markup: {
-				inline_keyboard: [
-					[
-						{
-							text: '✅ Принять',
-							callback_data: `${CONFIRM_ACCEPT_BUTTON}:${userId}`,
-						},
-						{
-							text: '❌ Отмена',
-							callback_data: `${CANCEL_ACCEPT_BUTTON}:${userId}`,
-						},
+	try {
+		// Получаем текущее сообщение
+		const message = ctx.callbackQuery.message
+
+		// Если это видео-кружок, используем другой подход
+		if (message.video_note) {
+			// Получаем ID видео-кружка
+			const videoNoteFileId = message.video_note.file_id
+
+			// Формируем текст для сообщения
+			const userName = message.from
+				? `${message.from.first_name} ${message.from.last_name || ''}`
+				: 'пользователя'
+			const text = `📹 Видео-сообщение от ${userName}`
+
+			// Удаляем оригинальное сообщение
+			await ctx.deleteMessage()
+
+			// Отправляем кружок
+			await ctx.telegram.sendVideoNote(message.chat.id, videoNoteFileId)
+
+			// Отправляем новое сообщение с текстом и кнопками
+			await ctx.telegram.sendMessage(message.chat.id, text, {
+				parse_mode: 'HTML',
+				reply_markup: {
+					inline_keyboard: [
+						[
+							{
+								text: '✅ Принять',
+								callback_data: `${CONFIRM_ACCEPT_BUTTON}:${userId}`,
+							},
+							{
+								text: '❌ Отмена',
+								callback_data: `${CANCEL_ACCEPT_BUTTON}:${userId}`,
+							},
+						],
 					],
-				],
-			},
+				},
+			})
+
+			return
 		}
-	)
+
+		// Получаем текущий текст сообщения
+		let currentText = message.text || message.caption || ''
+
+		// Если текст пустой, добавляем сообщение о типе медиа
+		if (!currentText) {
+			if (message.video) {
+				currentText = '📹 Видео-сообщение'
+			} else if (message.photo) {
+				currentText = '🖼 Фото-сообщение'
+			} else if (message.voice) {
+				currentText = '🎤 Голосовое сообщение'
+			} else if (message.audio) {
+				currentText = '🎵 Аудио-сообщение'
+			} else if (message.document) {
+				currentText = '📄 Документ'
+			} else {
+				currentText = '📝 Сообщение'
+			}
+
+			// Добавляем информацию об отправителе, если она доступна
+			if (message.from) {
+				currentText += ` от ${message.from.first_name} ${
+					message.from.last_name || ''
+				}`
+			}
+		}
+
+		// Проверяем, есть ли в сообщении медиа
+		if (
+			message.photo ||
+			message.video ||
+			message.document ||
+			message.audio ||
+			message.voice
+		) {
+			// Для сообщений с медиа используем editMessageCaption
+			await ctx.editMessageCaption(currentText, {
+				parse_mode: 'HTML',
+				reply_markup: {
+					inline_keyboard: [
+						[
+							{
+								text: '✅ Принять',
+								callback_data: `${CONFIRM_ACCEPT_BUTTON}:${userId}`,
+							},
+							{
+								text: '❌ Отмена',
+								callback_data: `${CANCEL_ACCEPT_BUTTON}:${userId}`,
+							},
+						],
+					],
+				},
+			})
+		} else {
+			// Для текстовых сообщений используем editMessageText
+			await ctx.editMessageText(currentText, {
+				parse_mode: 'HTML',
+				reply_markup: {
+					inline_keyboard: [
+						[
+							{
+								text: '✅ Принять',
+								callback_data: `${CONFIRM_ACCEPT_BUTTON}:${userId}`,
+							},
+							{
+								text: '❌ Отмена',
+								callback_data: `${CANCEL_ACCEPT_BUTTON}:${userId}`,
+							},
+						],
+					],
+				},
+			})
+		}
+	} catch (error) {
+		console.error(
+			'Ошибка при обновлении сообщения для подтверждения принятия:',
+			error
+		)
+		// Сообщаем о проблеме в оригинальном сообщении
+		await ctx.answerCbQuery('Ошибка при обновлении сообщения: ' + error.message)
+	}
 }
 
 async function handleConfirmAccept(ctx) {
 	const userId = ctx.callbackQuery.data.split(':')[1]
 
 	try {
+		// Получаем исходное сообщение
+		const message = ctx.callbackQuery.message
+
+		// Получаем текст сообщения
+		let originalText = message.text || message.caption || ''
+
+		// Если текст пустой, добавляем сообщение о типе медиа
+		if (!originalText) {
+			if (message.video) {
+				originalText = '📹 Видео-сообщение'
+			} else if (message.photo) {
+				originalText = '🖼 Фото-сообщение'
+			} else if (message.video_note) {
+				originalText = '⚪ Видео-кружок'
+			} else if (message.voice) {
+				originalText = '🎤 Голосовое сообщение'
+			} else if (message.audio) {
+				originalText = '🎵 Аудио-сообщение'
+			} else if (message.document) {
+				originalText = '📄 Документ'
+			} else {
+				originalText = '📝 Сообщение'
+			}
+
+			// Добавляем информацию об отправителе, если она доступна
+			if (message.from) {
+				originalText += ` от ${message.from.first_name} ${
+					message.from.last_name || ''
+				}`
+			}
+		}
+
+		// Выводим в лог для дебага
+		console.log('Текст перед принятием:', originalText)
+
 		// Принимаем пользователя в группу
 		await ctx.telegram.approveChatJoinRequest(MONO_PITER_CHAT_ID, userId)
 
@@ -573,48 +1020,187 @@ async function handleConfirmAccept(ctx) {
 			)
 		}
 
-		await ctx.editMessageText(
-			`✅ Пользователь принят в группу\n` + `Пользователь уведомлен`,
-			{ parse_mode: 'HTML' }
-		)
+		// Добавляем информацию о принятии к исходному сообщению
+		const acceptText =
+			'\n\n✅ <b>Пользователь принят в группу. Пользователь уведомлен.</b>'
+		const newText = originalText + acceptText
+
+		// Обновляем сообщение, сохраняя исходный текст
+		if (
+			message.photo ||
+			message.video ||
+			message.document ||
+			message.audio ||
+			message.voice ||
+			message.video_note
+		) {
+			// Для сообщений с медиа используем editMessageCaption
+			await ctx.editMessageCaption(newText, {
+				parse_mode: 'HTML',
+			})
+		} else {
+			// Для текстовых сообщений используем editMessageText
+			await ctx.editMessageText(newText, {
+				parse_mode: 'HTML',
+			})
+		}
 	} catch (error) {
+		// Получаем исходное сообщение для обработки ошибок
+		const message = ctx.callbackQuery.message
+		let originalText = message.text || message.caption || ''
+
+		// Если текст пустой, добавляем сообщение о типе медиа
+		if (!originalText) {
+			if (message.video) {
+				originalText = '📹 Видео-сообщение'
+			} else if (message.photo) {
+				originalText = '🖼 Фото-сообщение'
+			} else if (message.video_note) {
+				originalText = '⚪ Видео-кружок'
+			} else if (message.voice) {
+				originalText = '🎤 Голосовое сообщение'
+			} else if (message.audio) {
+				originalText = '🎵 Аудио-сообщение'
+			} else if (message.document) {
+				originalText = '📄 Документ'
+			} else {
+				originalText = '📝 Сообщение'
+			}
+
+			// Добавляем информацию об отправителе, если она доступна
+			if (message.from) {
+				originalText += ` от ${message.from.first_name} ${
+					message.from.last_name || ''
+				}`
+			}
+		}
+
+		let errorText = ''
+
 		// Специальная обработка ошибки HIDE_REQUESTER_MISSING
 		if (error.message.includes('HIDE_REQUESTER_MISSING')) {
 			console.log(
 				`ℹ️ Заявка пользователя ${userId} уже была обработана (принята или отменена)`
 			)
-
-			// Обновляем сообщение с информацией о том, что заявка уже обработана
-			await ctx.editMessageText(
-				`ℹ️ Заявка пользователя уже была обработана (принята или отменена)`,
-				{ parse_mode: 'HTML' }
-			)
-			return
+			errorText =
+				'\n\nℹ️ <b>Заявка пользователя уже была обработана (принята или отменена)</b>'
 		}
-
 		// Специальная обработка ошибки USER_ALREADY_PARTICIPANT
-		if (error.message.includes('USER_ALREADY_PARTICIPANT')) {
+		else if (error.message.includes('USER_ALREADY_PARTICIPANT')) {
 			console.log(`ℹ️ Пользователь ${userId} уже является участником группы`)
-
-			// Обновляем сообщение с информацией о том, что пользователь уже в группе
-			await ctx.editMessageText(
-				`ℹ️ Пользователь уже является участником группы`,
-				{ parse_mode: 'HTML' }
-			)
-			return
+			errorText = '\n\nℹ️ <b>Пользователь уже является участником группы</b>'
+		}
+		// Для других ошибок
+		else {
+			console.error('Ошибка при принятии пользователя:', error)
+			errorText = `\n\n❌ <b>Произошла ошибка при принятии пользователя:</b> ${error.message}`
 		}
 
-		// Для других ошибок
-		console.error('Ошибка при принятии пользователя:', error)
-		await ctx.editMessageText(
-			`❌ Произошла ошибка при принятии пользователя: ${error.message}`,
-			{ parse_mode: 'HTML' }
-		)
+		// Добавляем сообщение об ошибке к исходному тексту
+		const newText = originalText + errorText
+
+		// Обновляем сообщение, сохраняя исходный текст
+		try {
+			if (
+				message.photo ||
+				message.video ||
+				message.document ||
+				message.audio ||
+				message.voice ||
+				message.video_note
+			) {
+				// Для сообщений с медиа используем editMessageCaption
+				await ctx.editMessageCaption(newText, {
+					parse_mode: 'HTML',
+				})
+			} else {
+				// Для текстовых сообщений используем editMessageText
+				await ctx.editMessageText(newText, {
+					parse_mode: 'HTML',
+				})
+			}
+		} catch (updateError) {
+			console.error('Ошибка при обновлении сообщения с ошибкой:', updateError)
+		}
 	}
 }
 
 async function handleCancelAccept(ctx) {
-	await ctx.editMessageText(`✅ Действие отменено`, { parse_mode: 'HTML' })
+	// Получаем ID пользователя из callback_data
+	const userId = ctx.callbackQuery.data.split(':')[1]
+
+	try {
+		// Получаем исходное сообщение
+		const message = ctx.callbackQuery.message
+
+		// Получаем текст сообщения
+		let originalText = message.text || message.caption || ''
+
+		// Если текст пустой, добавляем сообщение о типе медиа
+		if (!originalText) {
+			if (message.video) {
+				originalText = '📹 Видео-сообщение'
+			} else if (message.photo) {
+				originalText = '🖼 Фото-сообщение'
+			} else if (message.video_note) {
+				originalText = '⚪ Видео-кружок'
+			} else if (message.voice) {
+				originalText = '🎤 Голосовое сообщение'
+			} else if (message.audio) {
+				originalText = '🎵 Аудио-сообщение'
+			} else if (message.document) {
+				originalText = '📄 Документ'
+			} else {
+				originalText = '📝 Сообщение'
+			}
+
+			// Добавляем информацию об отправителе, если она доступна
+			if (message.from) {
+				originalText += ` от ${message.from.first_name} ${
+					message.from.last_name || ''
+				}`
+			}
+		}
+
+		// Выводим в лог для дебага
+		console.log('Текст сообщения:', originalText)
+
+		// Для любого сообщения восстанавливаем исходные кнопки "Принять" и "Задать вопрос"
+		const keyboard = [
+			[{ text: '✅ Принять', callback_data: `${ACCEPT_BUTTON}:${userId}` }],
+			[{ text: '❓ Задать вопрос', callback_data: `ask_${userId}` }],
+		]
+
+		// Возвращаем исходный интерфейс с соответствующими кнопками
+		if (
+			message.photo ||
+			message.video ||
+			message.document ||
+			message.audio ||
+			message.voice ||
+			message.video_note
+		) {
+			// Для сообщений с медиа используем editMessageCaption
+			await ctx.editMessageCaption(originalText, {
+				parse_mode: 'HTML',
+				reply_markup: {
+					inline_keyboard: keyboard,
+				},
+			})
+		} else {
+			// Для текстовых сообщений используем editMessageText
+			await ctx.editMessageText(originalText, {
+				parse_mode: 'HTML',
+				reply_markup: {
+					inline_keyboard: keyboard,
+				},
+			})
+		}
+	} catch (error) {
+		console.error('Ошибка при отмене принятия:', error)
+		// В случае ошибки просто выводим сообщение "Действие отменено"
+		await ctx.editMessageText(`✅ Действие отменено`, { parse_mode: 'HTML' })
+	}
 }
 
 module.exports = {

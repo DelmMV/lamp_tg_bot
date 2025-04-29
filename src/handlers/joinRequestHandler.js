@@ -442,29 +442,19 @@ async function handleUserReply(bot, ctx) {
 					mediaType = 'video_note'
 					mediaFileId = ctx.message.video_note.file_id
 
-					// Сначала отправляем информацию о пользователе
-					const infoMsg = await sendTelegramMessage(
+					// Сначала отправляем сам видео-кружок без кнопок
+					await bot.telegram.sendVideoNote(ADMIN_CHAT_ID, mediaFileId, {
+						message_thread_id: LAMP_THREAD_ID,
+					})
+
+					// Затем отправляем текстовое сообщение с кнопками
+					const sentMsg = await sendTelegramMessage(
 						bot,
 						ADMIN_CHAT_ID,
 						`📹 <b>Видео-сообщение от ${userLink}</b>`,
 						{
 							message_thread_id: LAMP_THREAD_ID,
 							parse_mode: 'HTML',
-						}
-					).catch(error => {
-						console.error(
-							'❌ Ошибка при отправке информации о видеосообщении:',
-							error
-						)
-						return null
-					})
-
-					// Затем отправляем само видеосообщение
-					const sentMsg = await bot.telegram.sendVideoNote(
-						ADMIN_CHAT_ID,
-						mediaFileId,
-						{
-							message_thread_id: LAMP_THREAD_ID,
 							reply_markup: {
 								inline_keyboard: [
 									[

@@ -251,12 +251,35 @@ ${messageText !== '[нет текста]' ? `💬 <b>Сообщение:</b>\n${
 			} else if (ctx.message.video_note) {
 				mediaType = 'video_note'
 				mediaFileId = ctx.message.video_note.file_id
-				mediaOptions.caption = `📹 Видео-сообщение от ${userLink}`
-				const sentMsg = await ctx.telegram.sendVideoNote(
+
+				// Сначала отправляем сам видео-кружок без кнопок
+				await ctx.telegram.sendVideoNote(ADMIN_CHAT_ID, mediaFileId, {
+					message_thread_id: LAMP_THREAD_ID,
+				})
+
+				// Затем отправляем текстовое сообщение с кнопками
+				const textMessage = `📹 <b>Видео-сообщение от ${userLink}</b>`
+				const sentMsg = await sendTelegramMessage(
+					bot,
 					ADMIN_CHAT_ID,
-					mediaFileId,
-					mediaOptions
+					textMessage,
+					{
+						message_thread_id: LAMP_THREAD_ID,
+						parse_mode: 'HTML',
+						reply_markup: {
+							inline_keyboard: [
+								[
+									{
+										text: '✅ Принять',
+										callback_data: `accept_user:${from.id}`,
+									},
+								],
+								[{ text: '❓ Задать вопрос', callback_data: `ask_${from.id}` }],
+							],
+						},
+					}
 				)
+
 				if (sentMsg) await saveUserButtonMessage(from.id, sentMsg.message_id)
 			} else if (ctx.message.voice) {
 				mediaType = 'voice'
