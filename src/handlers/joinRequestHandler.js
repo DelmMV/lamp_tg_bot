@@ -441,11 +441,47 @@ async function handleUserReply(bot, ctx) {
 				} else if (ctx.message.video_note) {
 					mediaType = 'video_note'
 					mediaFileId = ctx.message.video_note.file_id
-					mediaOptions.caption = `📹 Видео-сообщение от ${userLink}`
+
+					// Сначала отправляем информацию о пользователе
+					const infoMsg = await sendTelegramMessage(
+						bot,
+						ADMIN_CHAT_ID,
+						`📹 <b>Видео-сообщение от ${userLink}</b>`,
+						{
+							message_thread_id: LAMP_THREAD_ID,
+							parse_mode: 'HTML',
+						}
+					).catch(error => {
+						console.error(
+							'❌ Ошибка при отправке информации о видеосообщении:',
+							error
+						)
+						return null
+					})
+
+					// Затем отправляем само видеосообщение
 					const sentMsg = await bot.telegram.sendVideoNote(
 						ADMIN_CHAT_ID,
 						mediaFileId,
-						mediaOptions
+						{
+							message_thread_id: LAMP_THREAD_ID,
+							reply_markup: {
+								inline_keyboard: [
+									[
+										{
+											text: '✅ Принять',
+											callback_data: `accept_user:${userId}`,
+										},
+									],
+									[
+										{
+											text: '❓ Задать вопрос',
+											callback_data: `ask_${userId}`,
+										},
+									],
+								],
+							},
+						}
 					)
 					if (sentMsg) await saveUserButtonMessage(userId, sentMsg.message_id)
 				} else if (ctx.message.voice) {
@@ -491,8 +527,7 @@ async function handleUserReply(bot, ctx) {
 			}
 		} else {
 			// Если нет медиа-файла, отправляем текстовое сообщение
-			const adminMessage = `
-💬 <b>Ответ от пользователя ${userLink}:</b>
+			const adminMessage = `💬 <b>Ответ от пользователя ${userLink}:</b>
 ${message}
             `.trim()
 
