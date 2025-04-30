@@ -97,6 +97,37 @@ async function getLast24HoursMessages(chatId) {
 }
 
 /**
+ * Получает сообщения за последние N часов для указанного чата
+ * @param {string} chatId - ID чата
+ * @param {number} hours - Количество часов
+ * @returns {Promise<Array>} Массив сообщений
+ */
+async function getLastHoursMessages(chatId, hours = 12) {
+	try {
+		const hoursAgo = new Date()
+		hoursAgo.setHours(hoursAgo.getHours() - hours)
+
+		const db = await getDb()
+		const messages = await db
+			.collection(MESSAGES_COLLECTION)
+			.find({
+				'chat.id': Number(chatId),
+				date: { $gte: hoursAgo },
+			})
+			.sort({ date: 1 })
+			.toArray()
+
+		return messages
+	} catch (error) {
+		console.error(
+			`❌ Ошибка при получении сообщений за последние ${hours} часов:`,
+			error
+		)
+		return []
+	}
+}
+
+/**
  * Получает сообщения за указанный период для выбранного чата
  * @param {string} chatId - ID чата
  * @param {Date} startDate - Начальная дата
@@ -144,6 +175,7 @@ async function clearChatMessages(chatId) {
 module.exports = {
 	storeMessage,
 	getLast24HoursMessages,
+	getLastHoursMessages,
 	getMessagesByDateRange,
 	clearChatMessages,
 }

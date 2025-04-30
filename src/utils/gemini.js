@@ -8,9 +8,10 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
 /**
  * Генерирует краткую сводку чата на основе сообщений
  * @param {Array} messages - Массив сообщений за период
+ * @param {boolean} isEveningReport - Признак вечернего отчета
  * @returns {Promise<string>} Краткая сводка
  */
-async function generateChatSummary(messages) {
+async function generateChatSummary(messages, isEveningReport = false) {
 	try {
 		const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
 
@@ -35,8 +36,13 @@ async function generateChatSummary(messages) {
 			return `[${dateStr}] ${from}: ${content}`
 		})
 
+		// Определяем временной период для отчета
+		const timePeriod = isEveningReport
+			? 'за последние 12 часов (с 8:00 до 20:00)'
+			: 'за последние 12 часов (с 20:00 до 8:00)'
+
 		// Формируем промпт для Gemini с дополнительным контекстом
-		const prompt = `Ты - ассистент для анализа моноколесного чата в Telegram. Создай краткую сводку обсуждений в чате за указанный период.
+		const prompt = `Ты - ассистент для анализа моноколесного чата в Telegram. Создай краткую сводку обсуждений в чате ${timePeriod}.
 
 Требования к сводке:
 1. Выдели 3-7 основных тем обсуждения

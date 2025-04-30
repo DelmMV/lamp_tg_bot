@@ -54,7 +54,7 @@ const {
 const { handleSummaryCommand } = require('./handlers/summaryHandler')
 const { storeMessage } = require('./utils/chatStorage')
 const { generateChatSummary, sendSummaryToAdmin } = require('./utils/gemini')
-const { getLast24HoursMessages } = require('./utils/chatStorage')
+const { getLastHoursMessages } = require('./utils/chatStorage')
 
 // Глобальная переменная для хранения экземпляра бота
 let bot = null
@@ -513,17 +513,19 @@ async function safeShutdown(signal) {
 }
 
 // Функция для автоматической отправки сводки
-async function sendDailySummary(bot) {
+async function sendDailySummary(bot, isEveningReport = false) {
 	try {
 		// Получаем ID чата для мониторинга из константы MONO_PITER_CHAT_ID
-		const messages = await getLast24HoursMessages(MONO_PITER_CHAT_ID)
+		const messages = await getLastHoursMessages(MONO_PITER_CHAT_ID, 12)
 		if (messages.length === 0) return
 
-		// Генерируем сводку
-		const summary = await generateChatSummary(messages)
+		// Генерируем сводку с указанием времени отчета
+		const summary = await generateChatSummary(messages, isEveningReport)
 
-		// Формируем заголовок
-		const title = `📊 <b>Ежедневная сводка чата</b>\n\n`
+		// Формируем заголовок в зависимости от времени отчета
+		const title = isEveningReport
+			? `📊 <b>Вечерняя сводка чата (20:00)</b>\n\n`
+			: `📊 <b>Утренняя сводка чата (8:00)</b>\n\n`
 
 		// Отправляем сводку
 		await sendTelegramMessage(bot, ADMIN_CHAT_ID, title + summary, {
@@ -531,28 +533,51 @@ async function sendDailySummary(bot) {
 			parse_mode: 'HTML',
 		})
 	} catch (error) {
-		console.error('❌ Ошибка при отправке ежедневной сводки:', error)
+		console.error('❌ Ошибка при отправке сводки чата:', error)
 	}
 }
 
-// Настройка таймера для ежедневной отправки сводки
+// Настройка таймера для отправки сводки два раза в день (8:00 и 20:00)
 function setupDailySummaryTimer(bot) {
-	// Вычисляем время до следующей полночи
+	// Получаем текущую дату и время
 	const now = new Date()
-	const tomorrow = new Date(now)
-	tomorrow.setDate(tomorrow.getDate() + 1)
-	tomorrow.setHours(0, 0, 0, 0)
 
-	const timeUntilMidnight = tomorrow - now
+	// Создаем даты для следующих 8:00 и 20:00
+	const nextMorningReport = new Date(now)
+	nextMorningReport.setHours(8, 0, 0, 0)
 
-	// Устанавливаем таймер на полночь
+	const nextEveningReport = new Date(now)
+	nextEveningReport.setHours(20, 0, 0, 0)
+
+	// Если текущее время уже после 8:00, переносим на следующий день
+	if (now >= nextMorningReport) {
+		nextMorningReport.setDate(nextMorningReport.getDate() + 1)
+	}
+
+	// Если текущее время уже после 20:00, переносим на следующий день
+	if (now >= nextEveningReport) {
+		nextEveningReport.setDate(nextEveningReport.getDate() + 1)
+	}
+
+	// Рассчитываем время до следующего отчета
+	const timeUntilMorningReport = nextMorningReport - now
+	const timeUntilEveningReport = nextEveningReport - now
+
+	// Устанавливаем таймеры для утреннего отчета (8:00)
 	setTimeout(() => {
-		sendDailySummary(bot)
+		sendDailySummary(bot, false) // Утренний отчет
 		// Устанавливаем повторение каждые 24 часа
-		setInterval(() => sendDailySummary(bot), 24 * 60 * 60 * 1000)
-	}, timeUntilMidnight)
+		setInterval(() => sendDailySummary(bot, false), 24 * 60 * 60 * 1000)
+	}, timeUntilMorningReport)
 
-	console.log('✅ Таймер ежедневной сводки настроен')
+	// Устанавливаем таймеры для вечернего отчета (20:00)
+	setTimeout(() => {
+		sendDailySummary(bot, true) // Вечерний отчет
+		// Устанавливаем повторение каждые 24 часа
+		setInterval(() => sendDailySummary(bot, true), 24 * 60 * 60 * 1000)
+	}, timeUntilEveningReport)
+
+	console.log('✅ Таймеры сводок настроены: 8:00 и 20:00 ежедневно')
 }
 
 /**
