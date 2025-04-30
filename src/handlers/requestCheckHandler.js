@@ -261,16 +261,6 @@ async function checkAndCancelExpiredRequests(bot) {
 							{
 								message_thread_id: LAMP_THREAD_ID,
 								parse_mode: 'HTML',
-								reply_markup: {
-									inline_keyboard: [
-										[
-											{
-												text: '❌ Бан',
-												callback_data: `${BAN_BUTTON}:${request.userId}`,
-											},
-										],
-									],
-								},
 							}
 						)
 					}
@@ -820,7 +810,7 @@ async function handleCancelBan(ctx) {
 								text: '❌ Бан',
 								callback_data: `${BAN_BUTTON}:${userId}`,
 							},
-						]
+						],
 					],
 				},
 			})
