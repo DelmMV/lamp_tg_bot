@@ -35,6 +35,11 @@ let checkRequestsTimer = null
  */
 async function connectToDatabase() {
 	try {
+		// Если подключение уже установлено, возвращаем его
+		if (db) {
+			return db
+		}
+
 		const client = new MongoClient(MONGO_URL)
 		await client.connect()
 		db = client.db(DB_NAME)
@@ -160,6 +165,25 @@ async function checkAndCancelExpiredRequests(bot) {
 								},
 							}
 						)
+
+						// Пытаемся отклонить заявку в Telegram несмотря на ошибку при проверке статуса
+						try {
+							await bot.telegram.declineChatJoinRequest(
+								MONO_PITER_CHAT_ID,
+								request.userId
+							)
+							console.log(
+								`✅ Заявка ${request._id} успешно отменена в Telegram`
+							)
+							canceledRequests.push(request)
+						} catch (declineError) {
+							// Если произошла другая ошибка при отклонении заявки, логируем ее
+							console.error(
+								`❌ Ошибка при отмене заявки ${request._id} в Telegram:`,
+								declineError.message
+							)
+						}
+
 						continue
 					}
 
@@ -174,6 +198,25 @@ async function checkAndCancelExpiredRequests(bot) {
 							},
 						}
 					)
+
+					// Все равно пытаемся отклонить заявку в Telegram
+					try {
+						await bot.telegram.declineChatJoinRequest(
+							MONO_PITER_CHAT_ID,
+							request.userId
+						)
+						console.log(
+							`✅ Заявка ${request._id} успешно отменена в Telegram, несмотря на ошибку статуса`
+						)
+						canceledRequests.push(request)
+					} catch (declineError) {
+						// Если произошла другая ошибка при отклонении заявки, логируем ее
+						console.error(
+							`❌ Ошибка при отмене заявки ${request._id} в Telegram:`,
+							declineError.message
+						)
+					}
+
 					continue
 				}
 
@@ -394,6 +437,7 @@ function startRequestCheckTimer(botInstance) {
 	try {
 		// Очищаем предыдущий таймер, если он существует
 		if (checkRequestsTimer) {
+			console.log('Таймер проверки заявок уже запущен, перезапускаем')
 			clearInterval(checkRequestsTimer)
 		}
 
@@ -403,13 +447,21 @@ function startRequestCheckTimer(botInstance) {
 		})
 
 		// Устанавливаем периодическую проверку
-		checkRequestsTimer = setInterval(() => {
-			checkAndCancelExpiredRequests(botInstance).catch(error => {
+		checkRequestsTimer = setInterval(async () => {
+			try {
+				// Проверяем, установлено ли соединение с БД
+				if (!db) {
+					await connectToDatabase()
+				}
+				await checkAndCancelExpiredRequests(botInstance)
+			} catch (error) {
 				console.error('❌ Ошибка при проверке заявок:', error)
-			})
+			}
 		}, JOIN_REQUEST.CHECK_INTERVAL_MINUTES * 60 * 1000)
 
-		console.log('✅ Таймер проверки заявок запущен')
+		console.log(
+			`✅ Таймер проверки заявок запущен с интервалом ${JOIN_REQUEST.CHECK_INTERVAL_MINUTES} минут`
+		)
 	} catch (error) {
 		console.error('❌ Ошибка при запуске таймера проверки заявок:', error)
 	}
