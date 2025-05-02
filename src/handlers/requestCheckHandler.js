@@ -147,6 +147,22 @@ async function checkAndCancelExpiredRequests(bot) {
 						continue
 					}
 
+					// Обрабатываем ошибку member not found
+					if (error.message.includes('member not found')) {
+						// Обновляем статус в базе данных
+						await joinRequestsCollection.updateOne(
+							{ _id: request._id },
+							{
+								$set: {
+									status: 'expired',
+									updatedAt: new Date(),
+									reason: 'Пользователь не найден в группе',
+								},
+							}
+						)
+						continue
+					}
+
 					// Для других ошибок
 					await joinRequestsCollection.updateOne(
 						{ _id: request._id },
@@ -281,6 +297,22 @@ async function checkAndCancelExpiredRequests(bot) {
 						continue
 					}
 
+					// Обрабатываем ошибку member not found
+					if (error.message.includes('member not found')) {
+						// Обновляем статус в базе данных
+						await joinRequestsCollection.updateOne(
+							{ _id: request._id },
+							{
+								$set: {
+									status: 'expired',
+									updatedAt: new Date(),
+									reason: 'Заявка не найдена в Telegram',
+								},
+							}
+						)
+						continue
+					}
+
 					// Обрабатываем ошибку USER_ID_INVALID
 					if (error.message.includes('USER_ID_INVALID')) {
 						// Обновляем статус в базе данных
@@ -315,6 +347,11 @@ async function checkAndCancelExpiredRequests(bot) {
 					}
 
 					// Для других ошибок отправляем уведомление в админ-канал
+					console.error(
+						`❌ Неизвестная ошибка при отмене заявки ${request._id} пользователя ${request.userId}:`,
+						error.message
+					)
+
 					await bot.telegram.sendMessage(
 						ADMIN_CHAT_ID,
 						`⚠️ <b>Ошибка при отмене заявки</b>\n\n` +
