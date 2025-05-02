@@ -591,13 +591,13 @@ async function startBot() {
 		// Инициализируем бота
 		bot = initBot()
 
-		// Подключаемся к БД
-		await connectToDatabase()
+		// Подключаемся к БД (общая для всего приложения)
+		const database = await connectToDatabase()
 		console.log('✅ Подключение к базе данных установлено')
 
-		// Подключаемся к БД для проверки заявок
-		await connectRequestCheckDb()
-		console.log('✅ Подключение к базе данных для проверки заявок установлено')
+		// Передаем экземпляр БД для инициализации модуля requestCheckHandler
+		// Не создаём отдельное подключение, т.к. MongoDB использует пулы соединений
+		// и модуль requestCheckHandler будет использовать то же самое соединение
 
 		// Настраиваем обработчики
 		setupCommandHandlers(bot)

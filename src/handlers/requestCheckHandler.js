@@ -3,16 +3,13 @@
  * @module handlers/requestCheckHandler
  */
 
-const { MongoClient } = require('mongodb')
 const {
-	MONGO_URL,
-	DB_NAME,
 	ADMIN_CHAT_ID,
 	LAMP_THREAD_ID,
 	MONO_PITER_CHAT_ID,
 	JOIN_REQUEST,
 } = require('../config')
-const { banUser } = require('../db')
+const { banUser, connectToDatabase, getDb } = require('../db')
 
 // Добавляем константы для кнопок
 const BAN_BUTTON = 'ban_user'
@@ -22,34 +19,8 @@ const ACCEPT_BUTTON = 'accept_user'
 const CONFIRM_ACCEPT_BUTTON = 'confirm_accept'
 const CANCEL_ACCEPT_BUTTON = 'cancel_accept'
 
-/** @type {import('mongodb').Db} */
-let db = null
-
 // Таймер для проверки заявок
 let checkRequestsTimer = null
-
-/**
- * Устанавливает соединение с базой данных
- * @async
- * @returns {Promise<import('mongodb').Db>} Экземпляр подключения к БД
- */
-async function connectToDatabase() {
-	try {
-		// Если подключение уже установлено, возвращаем его
-		if (db) {
-			return db
-		}
-
-		const client = new MongoClient(MONGO_URL)
-		await client.connect()
-		db = client.db(DB_NAME)
-		console.log('Connected to MongoDB')
-		return db
-	} catch (error) {
-		console.error('MongoDB connection error:', error)
-		throw error
-	}
-}
 
 /**
  * Проверяет и отменяет просроченные заявки
@@ -59,6 +30,14 @@ async function connectToDatabase() {
  */
 async function checkAndCancelExpiredRequests(bot) {
 	try {
+		// Получаем экземпляр БД
+		await connectToDatabase()
+		const db = getDb()
+
+		if (!db) {
+			throw new Error('❌ Не удалось получить экземпляр базы данных')
+		}
+
 		const joinRequestsCollection = db.collection('joinRequests')
 		const now = new Date()
 		const lifetimeMinutes = JOIN_REQUEST.LIFETIME_MINUTES
@@ -440,11 +419,6 @@ function startRequestCheckTimer(botInstance) {
 			console.log('Таймер проверки заявок уже запущен, перезапускаем')
 			clearInterval(checkRequestsTimer)
 		}
-
-		// Запускаем проверку сразу при старте
-		checkAndCancelExpiredRequests(botInstance).catch(error => {
-			console.error('❌ Ошибка при проверке заявок:', error)
-		})
 
 		// Устанавливаем периодическую проверку
 		checkRequestsTimer = setInterval(async () => {
