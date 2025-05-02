@@ -423,10 +423,7 @@ function startRequestCheckTimer(botInstance) {
 		// Устанавливаем периодическую проверку
 		checkRequestsTimer = setInterval(async () => {
 			try {
-				// Проверяем, установлено ли соединение с БД
-				if (!db) {
-					await connectToDatabase()
-				}
+				// Проверяем базу данных и выполняем проверку заявок
 				await checkAndCancelExpiredRequests(botInstance)
 			} catch (error) {
 				console.error('❌ Ошибка при проверке заявок:', error)
