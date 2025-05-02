@@ -43,7 +43,6 @@ const {
 const {
 	startRequestCheckTimer,
 	stopRequestCheckTimer,
-	connectToDatabase: connectRequestCheckDb,
 	handleBanButton,
 	handleConfirmBan,
 	handleCancelBan,

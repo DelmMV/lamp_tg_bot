@@ -1257,7 +1257,6 @@ async function handleCancelAccept(ctx) {
 }
 
 module.exports = {
-	connectToDatabase,
 	checkAndCancelExpiredRequests,
 	startRequestCheckTimer,
 	stopRequestCheckTimer,
