@@ -17,6 +17,11 @@ let db = null
  */
 async function connectToDatabase() {
 	try {
+		// Если соединение уже установлено, возвращаем его
+		if (db) {
+			return db
+		}
+
 		// Удалены устаревшие опции useNewUrlParser и useUnifiedTopology
 		// Эти опции включены по умолчанию начиная с MongoDB Driver 4.0.0
 		const client = new MongoClient(MONGO_URL)
