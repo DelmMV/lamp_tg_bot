@@ -14,6 +14,7 @@ const {
 	isUserAccessError,
 	formatUserAccessError,
 } = require('../utils/errorHandler')
+const { getCachedSpamAnalysis, formatSpamAnalysisResult } = require('../utils/spamDetection')
 
 /**
  * Обрабатывает новых участников чата
@@ -151,6 +152,10 @@ async function handleChatJoinRequest(bot, ctx) {
 		const userId = from.id
 		const registrationPeriod = determineRegistrationYear(userId)
 
+		// Анализируем пользователя на предмет спам-аккаунта (с использованием кэша)
+		const spamAnalysis = getCachedSpamAnalysis(from)
+		const spamAnalysisText = formatSpamAnalysisResult(spamAnalysis, from)
+
 		// Формируем базовое сообщение для администраторов
 		let adminMessage = `
  ${from.first_name} подал(а) заявку на вступление
@@ -236,6 +241,20 @@ async function handleChatJoinRequest(bot, ctx) {
 				parse_mode: 'HTML',
 				reply_markup: keyboard,
 			})
+
+			// Отправляем результаты анализа на спам отдельным сообщением
+			try {
+				await sendTelegramMessage(bot, ADMIN_CHAT_ID, spamAnalysisText, {
+					message_thread_id: LAMP_THREAD_ID,
+					parse_mode: 'HTML',
+				})
+				console.log(`✅ Отправлен анализ спам-аккаунта для пользователя ${from.id}`)
+			} catch (spamAnalysisError) {
+				console.error(
+					'❌ Не удалось отправить анализ спам-аккаунта:',
+					spamAnalysisError
+				)
+			}
 		} catch (adminMsgError) {
 			console.error(
 				'❌ Не удалось отправить уведомление админам о запросе:',
