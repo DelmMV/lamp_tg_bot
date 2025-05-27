@@ -59,11 +59,11 @@ async function generateChatSummary(messages, isEveningReport = false) {
 Вот сообщения чата (${preparedMessages.length} сообщений):
 ${preparedMessages.join('\n')}`
 
-		// Отправляем запрос к OpenRouter API с моделью deepseek-r1:free
+		// Отправляем запрос к OpenRouter API с моделью deepseek-chat-v3-0324:free
 		const response = await axios.post(
 			'https://openrouter.ai/api/v1/chat/completions',
 			{
-				model: 'deepseek/deepseek-r1:free',
+				model: 'deepseek/deepseek-chat-v3-0324:free',
 				messages: [
 					{
 						role: 'user',
