@@ -242,18 +242,22 @@ async function handleChatJoinRequest(bot, ctx) {
 				reply_markup: keyboard,
 			})
 
-			// Отправляем результаты анализа на спам отдельным сообщением
-			try {
-				await sendTelegramMessage(bot, ADMIN_CHAT_ID, spamAnalysisText, {
-					message_thread_id: LAMP_THREAD_ID,
-					parse_mode: 'HTML',
-				})
-				console.log(`✅ Отправлен анализ спам-аккаунта для пользователя ${from.id}`)
-			} catch (spamAnalysisError) {
-				console.error(
-					'❌ Не удалось отправить анализ спам-аккаунта:',
-					spamAnalysisError
-				)
+			// Отправляем результаты анализа на спам только если вероятность средняя или высокая
+			if (spamAnalysis.spamProbability >= 30) { // Показываем только для средней и высокой вероятности
+				try {
+					await sendTelegramMessage(bot, ADMIN_CHAT_ID, spamAnalysisText, {
+						message_thread_id: LAMP_THREAD_ID,
+						parse_mode: 'HTML',
+					})
+					console.log(`✅ Отправлен анализ спам-аккаунта для пользователя ${from.id}`)
+				} catch (spamAnalysisError) {
+					console.error(
+						'❌ Не удалось отправить анализ спам-аккаунта:',
+						spamAnalysisError
+					)
+				}
+			} else {
+				console.log(`ℹ️ Низкая вероятность спама (${spamAnalysis.spamProbability}%) для пользователя ${from.id}, анализ не отправлен`)
 			}
 		} catch (adminMsgError) {
 			console.error(
