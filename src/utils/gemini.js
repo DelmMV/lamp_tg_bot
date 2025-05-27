@@ -1,9 +1,9 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai')
+const axios = require('axios')
 const { BOT_TOKEN, ADMIN_CHAT_ID, LAMP_THREAD_ID } = require('../config')
 const { sendTelegramMessage } = require('./messaging')
 
-// Инициализация Gemini API
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+// Инициализация OpenRouter API
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY // Используем существующий ключ, если новый не задан
 
 /**
  * Генерирует краткую сводку чата на основе сообщений
@@ -13,8 +13,6 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
  */
 async function generateChatSummary(messages, isEveningReport = false) {
 	try {
-		const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
-
 		// Подготовка сообщений для анализа
 		const preparedMessages = messages.map(msg => {
 			// Извлекаем основную информацию из сообщения
@@ -41,7 +39,7 @@ async function generateChatSummary(messages, isEveningReport = false) {
 			? 'за последние 12 часов (с 8:00 до 20:00)'
 			: 'за последние 12 часов (с 20:00 до 8:00)'
 
-		// Формируем промпт для Gemini с дополнительным контекстом
+		// Формируем промпт для модели с дополнительным контекстом
 		const prompt = `Ты - ассистент для анализа моноколесного чата в Telegram. Создай краткую сводку обсуждений в чате ${timePeriod}.
 
 Требования к сводке:
@@ -61,9 +59,31 @@ async function generateChatSummary(messages, isEveningReport = false) {
 Вот сообщения чата (${preparedMessages.length} сообщений):
 ${preparedMessages.join('\n')}`
 
-		const result = await model.generateContent(prompt)
-		const response = await result.response
-		return response.text()
+		// Отправляем запрос к OpenRouter API с моделью deepseek-r1:free
+		const response = await axios.post(
+			'https://openrouter.ai/api/v1/chat/completions',
+			{
+				model: 'deepseek/deepseek-r1:free',
+				messages: [
+					{
+						role: 'user',
+						content: prompt
+					}
+				],
+				max_tokens: 1500
+			},
+			{
+				headers: {
+					'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+					'Content-Type': 'application/json',
+					'HTTP-Referer': 'https://lamp_tg_bot', // Указываем источник запроса
+					'X-Title': 'Lamp Telegram Bot' // Название приложения
+				}
+			}
+		)
+
+		// Извлекаем текст ответа
+		return response.data.choices[0].message.content
 	} catch (error) {
 		console.error('❌ Ошибка при генерации сводки:', error)
 		throw error
