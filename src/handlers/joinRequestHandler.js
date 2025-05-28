@@ -79,9 +79,7 @@ ${
 Если будете отвечать на этот запрос, в начале ответа укажите ID пользователя в формате:
 <code>${userIdNum}: Ваш вопрос</code>`
 		: ''
-}
-
-Для отмены введите /cancel в вашем ответе.`
+}`
 
 		let sentMsg
 		try {
@@ -90,6 +88,9 @@ ${
 				reply_markup: {
 					force_reply: true,
 					selective: true,
+					inline_keyboard: [
+						[{ text: "Отмена", callback_data: `cancel_question_${userIdNum}` }]
+					],
 				},
 				parse_mode: 'HTML',
 			})
@@ -302,7 +303,14 @@ async function sendAdminQuestion(bot, ctx) {
 		await ctx.reply(
 			`✅ Вопрос успешно отправлен пользователю ${joinRequest.firstName} ${
 				joinRequest.lastName || ''
-			} (ID: ${targetUserId}). Ожидаем ответ.`
+			} (ID: ${targetUserId}). Ожидаем ответ.`,
+			{
+				reply_markup: {
+					inline_keyboard: [
+						[{ text: 'Задать вопрос', callback_data: `ask_${targetUserId}` }]
+					]
+				}
+			}
 		)
 
 		// Очищаем соответствующие записи из pendingQuestions
@@ -573,6 +581,41 @@ async function handleJoinRequestCallback(bot, ctx) {
 			const userId = data.split('_')[1]
 			console.log(`❓ Обработка запроса на вопрос для пользователя ${userId}`)
 			await handleAskQuestion(bot, ctx, userId)
+		} else if (data.startsWith('cancel_question_')) {
+			// Обработка нажатия на кнопку "Отмена" при запросе вопроса
+			const userId = parseInt(data.split('_')[2], 10)
+			const adminId = ctx.from.id
+			
+			console.log(`❌ Отмена запроса вопроса для пользователя ${userId} от админа ${adminId}`)
+			
+			// Удаляем все запросы для этого пользователя от данного админа
+			for (const [key, data] of pendingQuestions.entries()) {
+				if (data.userId === userId && data.adminId === adminId) {
+					pendingQuestions.delete(key)
+				}
+			}
+			
+			// Удаляем сообщение с запросом вопроса
+			try {
+				await ctx.deleteMessage()
+				console.log(`❌ Сообщение с запросом вопроса удалено`)
+			} catch (deleteError) {
+				// Если не удалось удалить сообщение, редактируем его
+				console.error(`❌ Ошибка при удалении сообщения:`, deleteError)
+				try {
+					await ctx.editMessageText(`<b>Вопрос для пользователя отменен</b>`, {
+						parse_mode: 'HTML',
+						reply_markup: { inline_keyboard: [] } // Убираем все кнопки
+					})
+				} catch (editError) {
+					console.error(`❌ Ошибка при редактировании сообщения:`, editError)
+				}
+			}
+			
+			// Отвечаем на callback запрос
+			if (ctx.callbackQuery && typeof ctx.callbackQuery.answer === 'function') {
+				await ctx.callbackQuery.answer('Запрос вопроса отменен')
+			}
 		} else {
 			console.error('❓ Неизвестный формат данных callback:', data)
 			// Не отвечаем на callback здесь
