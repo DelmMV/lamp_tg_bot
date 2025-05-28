@@ -174,8 +174,9 @@ async function handleMessageForAds(bot, ctx) {
 ${formattedResult}
 `.trim()
         
-        // Отправляем уведомление администраторам
-        console.log(`📤 Отправляем уведомление администраторам в чат ${config.ADMIN_CHAT_ID}, тред ${config.LAMP_THREAD_ID}`)
+        // Отправляем уведомление администраторам в тред MESSAGE_THREAD_ID_ADMIN_CHAT
+        // config.LAMP_THREAD_ID уже настроен на использование MESSAGE_THREAD_ID_ADMIN_CHAT в config/index.js
+        console.log(`📤 Отправляем уведомление администраторам в чат ${config.ADMIN_CHAT_ID}, тред ${config.LAMP_THREAD_ID} (MESSAGE_THREAD_ID_ADMIN_CHAT)`)
         try {
           await sendTelegramMessage(
             bot, 
