@@ -31,6 +31,7 @@ const {
 	handleHashtagMedia,
 	handlePrivateMessage,
 } = require('./handlers/messageHandler')
+const { handleMessageForAds } = require('./handlers/adHandler')
 const {
 	handleNewChatMembers,
 	handleChatJoinRequest,
@@ -283,6 +284,64 @@ function setupMediaHandlers(botInstance) {
 }
 
 /**
+ * Настраивает специальный обработчик для пересланных сообщений (форвардов)
+ * @param {Telegraf} botInstance - Экземпляр бота
+ */
+function setupForwardedMessageHandler(botInstance) {
+	try {
+		// Создаем специальный обработчик для пересланных сообщений
+		botInstance.use(async (ctx, next) => {
+			// Проверяем, что это сообщение и оно переслано
+			if (ctx.message) {
+				const message = ctx.message;
+				const hasForwardOrigin = !!message.forward_origin;
+				const hasForwardFrom = !!message.forward_from;
+				const hasForwardFromChat = !!message.forward_from_chat;
+				const hasForwardDate = !!message.forward_date;
+				const hasAnyForward = hasForwardOrigin || hasForwardFrom || hasForwardFromChat || hasForwardDate;
+				
+				if (hasAnyForward) {
+					console.log('🔁 ОБНАРУЖЕНО ПЕРЕСЛАННОЕ СООБЩЕНИЕ В СПЕЦИАЛЬНОМ ОБРАБОТЧИКЕ');
+					console.log('💬 Поля сообщения:', Object.keys(message));
+					console.log('💬 Тип чата:', message.chat.type);
+					console.log('💬 ID чата:', message.chat.id);
+					
+					// Проверяем наличие разных типов пересылки
+					if (hasForwardOrigin) {
+						console.log('📩 forward_origin присутствует:', JSON.stringify(message.forward_origin, null, 2));
+					}
+					if (hasForwardFrom) {
+						console.log('📩 forward_from присутствует:', JSON.stringify(message.forward_from, null, 2));
+					}
+					if (hasForwardFromChat) {
+						console.log('📩 forward_from_chat присутствует:', JSON.stringify(message.forward_from_chat, null, 2));
+					}
+					
+					// Проверяем, что сообщение из целевого чата
+					if (message.chat.id === MONO_PITER_CHAT_ID) {
+						console.log('✅ Пересланное сообщение из целевого чата, анализируем на рекламу');
+						
+						// Отправляем на анализ рекламы
+						try {
+							await handleMessageForAds(botInstance, ctx);
+						} catch (adError) {
+							console.error('❌ Ошибка при анализе пересланного сообщения на рекламу:', adError);
+						}
+					}
+				}
+			}
+			
+			// Продолжаем цепочку обработчиков
+			return next();
+		});
+		
+		console.log('✅ Специальный обработчик пересланных сообщений настроен');
+	} catch (error) {
+		console.error('❌ Ошибка при настройке обработчика пересланных сообщений:', error);
+	}
+}
+
+/**
  * Настраивает обработчик всех текстовых сообщений
  * @param {Telegraf} botInstance - Экземпляр бота
  */
@@ -290,6 +349,33 @@ function setupMessageHandler(botInstance) {
 	try {
 		botInstance.on('message', async ctx => {
 			try {
+				// Базовая проверка на пересланные сообщения
+				const hasForwardOrigin = !!ctx.message.forward_origin;
+				const hasForwardFrom = !!ctx.message.forward_from;
+				const hasForwardFromChat = !!ctx.message.forward_from_chat;
+				const hasForwardDate = !!ctx.message.forward_date;
+				const hasAnyForward = hasForwardOrigin || hasForwardFrom || hasForwardFromChat || hasForwardDate;
+				
+				if (hasAnyForward) {
+					console.log('🔁 ОБНАРУЖЕНО ПЕРЕСЛАННОЕ СООБЩЕНИЕ В ОСНОВНОМ ОБРАБОТЧИКЕ');
+					console.log('💬 Поля сообщения:', Object.keys(ctx.message));
+					console.log('💬 Тип чата:', ctx.message.chat.type);
+					console.log('💬 ID чата:', ctx.message.chat.id);
+					
+					if (hasForwardOrigin) {
+						console.log('📩 forward_origin присутствует');
+					}
+					if (hasForwardFrom) {
+						console.log('📩 forward_from присутствует');
+					}
+					if (hasForwardFromChat) {
+						console.log('📩 forward_from_chat присутствует');
+					}
+					if (hasForwardDate) {
+						console.log('📩 forward_date присутствует');
+					}
+				}
+				
 				// Сохраняем сообщение
 				storeMessage(ctx.message)
 
@@ -323,6 +409,9 @@ function setupMessageHandler(botInstance) {
 				// Проверка на запрещенные слова
 				const hasForbiddenWords = await checkForbiddenWords(botInstance, ctx)
 				if (hasForbiddenWords) return
+
+				// Анализ сообщения на наличие рекламы
+				await handleMessageForAds(botInstance, ctx)
 
 				// Обработка хэштегов медиа в ответах на сообщения
 				await handleHashtagMedia(botInstance, ctx)
@@ -602,6 +691,7 @@ async function startBot() {
 		setupCommandHandlers(bot)
 		setupUserEventHandlers(bot)
 		setupCallbackQueryHandler(bot)
+		setupForwardedMessageHandler(bot)
 		setupMediaHandlers(bot)
 		setupMessageHandler(bot)
 		setupErrorHandler(bot)

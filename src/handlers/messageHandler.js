@@ -7,6 +7,7 @@ const { containsForbiddenWords } = require('../utils/contentFilter')
 const { sendTelegramMessage } = require('../utils/messaging')
 const { hasMediaHashtag } = require('../utils/helpers')
 const { checkUserBan } = require('../utils/userBan')
+const { handleMessageForAds } = require('./adHandler')
 const {
 	deleteComment,
 	getJoinRequestByUserId,
