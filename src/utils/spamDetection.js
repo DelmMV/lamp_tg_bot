@@ -242,8 +242,10 @@ function formatSpamAnalysisResult(analysisResult, user) {
     statusEmoji = '⚠️';
   }
   
-  // Форматируем результат без дублирования информации о пользователе
-  let result = `<b>${statusEmoji} Анализ аккаунта на спам</b>\n\n`;
+  // Форматируем результат без дублирования избыточной информации о пользователе
+  // Добавляем имя пользователя в заголовок
+  const userName = user.first_name + (user.last_name ? ` ${user.last_name}` : '');
+  let result = `<b>${statusEmoji} Анализ аккаунта ${userName} на спам</b>\n\n`;
   result += `<b>Вероятность спама:</b> ${spamProbability}%\n`;
   result += `<b>Заключение:</b> ${explanation}\n\n`;
   
