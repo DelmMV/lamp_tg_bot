@@ -92,6 +92,23 @@ const config = {
 		х: 'x',
 		у: 'y',
 	},
+
+	// Настройки модулей
+	MODULES: {
+		// Анализ спам-аккаунтов
+		SPAM_DETECTION: {
+			// Включение/отключение модуля
+			ENABLED: true,
+			// Минимальный порог вероятности спама для отображения анализа
+			MIN_PROBABILITY_THRESHOLD: 30,
+		},
+		
+		// Сводки чата
+		CHAT_SUMMARY: {
+			// Включение/отключение модуля
+			ENABLED: true,
+		},
+	},
 }
 
 module.exports = config

@@ -8,6 +8,7 @@ const {
 	ADMIN_CHAT_ID,
 	LAMP_THREAD_ID,
 	MONO_PITER_CHAT_ID,
+	MODULES,
 } = require('../config')
 const { saveJoinRequest } = require('../db')
 const {
@@ -152,9 +153,19 @@ async function handleChatJoinRequest(bot, ctx) {
 		const userId = from.id
 		const registrationPeriod = determineRegistrationYear(userId)
 
-		// Анализируем пользователя на предмет спам-аккаунта (с использованием кэша)
-		const spamAnalysis = getCachedSpamAnalysis(from)
-		const spamAnalysisText = formatSpamAnalysisResult(spamAnalysis, from)
+		// Анализируем пользователя на предмет спам-аккаунта, если модуль включен
+		let spamAnalysis = null
+		let spamAnalysisText = null
+		
+		// Проверяем, включен ли модуль анализа спам-аккаунтов
+		if (MODULES.SPAM_DETECTION.ENABLED) {
+			// Анализируем пользователя с использованием кэша
+			spamAnalysis = getCachedSpamAnalysis(from)
+			spamAnalysisText = formatSpamAnalysisResult(spamAnalysis, from)
+			console.log(`✅ Модуль анализа спам-аккаунтов включен, анализ выполнен`)
+		} else {
+			console.log(`ℹ️ Модуль анализа спам-аккаунтов отключен`)
+		}
 
 		// Формируем базовое сообщение для администраторов
 		let adminMessage = `
@@ -242,22 +253,23 @@ async function handleChatJoinRequest(bot, ctx) {
 				reply_markup: keyboard,
 			})
 
-			// Отправляем результаты анализа на спам только если вероятность средняя или высокая
-			if (spamAnalysis.spamProbability >= 30) { // Показываем только для средней и высокой вероятности
+			// Отправляем результаты анализа на спам, если модуль включен и вероятность выше порога
+			if (MODULES.SPAM_DETECTION.ENABLED && spamAnalysis && 
+			    spamAnalysis.spamProbability >= MODULES.SPAM_DETECTION.MIN_PROBABILITY_THRESHOLD) {
 				try {
 					await sendTelegramMessage(bot, ADMIN_CHAT_ID, spamAnalysisText, {
 						message_thread_id: LAMP_THREAD_ID,
 						parse_mode: 'HTML',
 					})
-					console.log(`✅ Отправлен анализ спам-аккаунта для пользователя ${from.id}`)
+					console.log(`✅ Отправлен анализ спам-аккаунта для пользователя ${from.id} (вероятность: ${spamAnalysis.spamProbability}%)`)
 				} catch (spamAnalysisError) {
 					console.error(
 						'❌ Не удалось отправить анализ спам-аккаунта:',
 						spamAnalysisError
 					)
 				}
-			} else {
-				console.log(`ℹ️ Низкая вероятность спама (${spamAnalysis.spamProbability}%) для пользователя ${from.id}, анализ не отправлен`)
+			} else if (MODULES.SPAM_DETECTION.ENABLED && spamAnalysis) {
+				console.log(`ℹ️ Низкая вероятность спама (${spamAnalysis.spamProbability}%) для пользователя ${from.id}, ниже порога ${MODULES.SPAM_DETECTION.MIN_PROBABILITY_THRESHOLD}%`)
 			}
 		} catch (adminMsgError) {
 			console.error(

@@ -7,6 +7,7 @@ const {
 	ADMIN_CHAT_ID,
 	MONO_PITER_CHAT_ID,
 	LAMP_THREAD_ID,
+	MODULES,
 } = require('../config')
 const { sendTelegramMessage } = require('../utils/messaging')
 
@@ -159,6 +160,13 @@ async function sendSummaryHelp(ctx) {
  */
 async function handleSummaryCommand(bot, ctx) {
 	try {
+		// Проверяем, включен ли модуль сводки чата
+		if (!MODULES.CHAT_SUMMARY.ENABLED) {
+			console.log(`❌ Модуль сводки чата отключен`)
+			await ctx.reply('❗ Модуль сводки чата отключен в настройках. Для использования команды /summary включите модуль в конфигурации.')
+			return
+		}
+		
 		// Отладка: выводим ID чата и ID из конфига
 		console.log(
 			`📊 Команда /summary: chat.id=${ctx.chat.id}, ADMIN_CHAT_ID=${ADMIN_CHAT_ID}`
