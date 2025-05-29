@@ -1,9 +1,9 @@
 const axios = require('axios')
-const { BOT_TOKEN, ADMIN_CHAT_ID, LAMP_THREAD_ID } = require('../config')
+const { ADMIN_CHAT_ID, LAMP_THREAD_ID } = require('../config')
 const { sendTelegramMessage } = require('./messaging')
 
 // Инициализация OpenRouter API
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY // Используем существующий ключ, если новый не задан
+const OPENROUTER_API_KEY2 = process.env.OPENROUTER_API_KEY2
 
 /**
  * Генерирует краткую сводку чата на основе сообщений
@@ -74,7 +74,7 @@ ${preparedMessages.join('\n')}`
 			},
 			{
 				headers: {
-					'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+					'Authorization': `Bearer ${OPENROUTER_API_KEY2}`,
 					'Content-Type': 'application/json',
 					'HTTP-Referer': 'https://lamp_tg_bot', // Указываем источник запроса
 					'X-Title': 'Lamp Telegram Bot' // Название приложения
