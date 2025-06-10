@@ -37,7 +37,7 @@ const REPLY_TEMPLATES = [
 	},
 	{
 		id: 'mono',
-		button: 'Только моноколеса',
+		button: 'Без мк не пустим',
 		text: `Привет! Наша группа — только для владельцев моноколёс.
 Без колеса, увы, доступ закрыт.
 Но зато у нас есть отличная моношкола @MonoPiterSchool — приходи учиться! 😉
@@ -602,7 +602,7 @@ async function handleJoinRequestCallback(bot, ctx) {
 
 		// --- Шаблоны ответов ---
 		if (data.startsWith('reply_templates:')) {
-			// Открыть меню шаблонов отдельным сообщением (reply на заявку)
+			// Открыть меню шаблонов отдельным сообщением (reply на исходное сообщение)
 			const userId = data.split(':')[1]
 			const keyboard = REPLY_TEMPLATES.map(tpl => [
 				{
@@ -611,24 +611,12 @@ async function handleJoinRequestCallback(bot, ctx) {
 				},
 			])
 			keyboard.push([
-				{ text: 'Назад', callback_data: `back_to_request_menu:${userId}` },
+				{ text: 'Отменить', callback_data: `cancel_templates:${userId}` },
 			])
-			// Отправляем только если это callback с кнопки в заявке (иначе редактируем)
-			if (
-				ctx.callbackQuery.message.reply_to_message ||
-				ctx.callbackQuery.message.text.includes('подал(а) заявку')
-			) {
-				// reply на заявку
-				await bot.telegram.sendMessage(ctx.chat.id, 'Выберите шаблон ответа:', {
-					reply_markup: { inline_keyboard: keyboard },
-					reply_to_message_id: ctx.callbackQuery.message.message_id,
-				})
-			} else {
-				// если это уже меню шаблонов — просто редактируем
-				await ctx.editMessageText('Выберите шаблон ответа:', {
-					reply_markup: { inline_keyboard: keyboard },
-				})
-			}
+			await bot.telegram.sendMessage(ctx.chat.id, 'Выберите шаблон ответа:', {
+				reply_markup: { inline_keyboard: keyboard },
+				reply_to_message_id: ctx.callbackQuery.message.message_id,
+			})
 			await ctx.answerCbQuery('Выберите шаблон ответа')
 			return
 		}
@@ -646,7 +634,7 @@ async function handleJoinRequestCallback(bot, ctx) {
 						text: 'Отправить',
 						callback_data: `send_template:${userId}:${templateId}`,
 					},
-					{ text: 'Назад', callback_data: `reply_templates:${userId}` },
+					{ text: 'Отменить', callback_data: `cancel_templates:${userId}` },
 				],
 			]
 			await ctx.editMessageText(
@@ -657,6 +645,14 @@ async function handleJoinRequestCallback(bot, ctx) {
 				}
 			)
 			await ctx.answerCbQuery()
+			return
+		}
+		if (data.startsWith('cancel_templates:')) {
+			// Удалить сообщение с меню шаблонов/подтверждением
+			try {
+				await ctx.deleteMessage()
+			} catch (e) {}
+			await ctx.answerCbQuery('Отменено')
 			return
 		}
 		if (data.startsWith('send_template:')) {
@@ -701,34 +697,6 @@ async function handleJoinRequestCallback(bot, ctx) {
 			}
 			return
 		}
-		if (data.startsWith('back_to_request_menu:')) {
-			// Возврат к начальному меню (кнопки "Задать вопрос", "Бан", "Шаблоны ответов")
-			const userId = data.split(':')[1]
-			const keyboard = [
-				[
-					{ text: '❓ Задать вопрос', callback_data: `ask_${userId}` },
-					{ text: '❌ Бан', callback_data: `ban_user:${userId}` },
-				],
-				[
-					{
-						text: 'Шаблоны ответов',
-						callback_data: `reply_templates:${userId}`,
-					},
-				],
-			]
-			await ctx.editMessageReplyMarkup({ inline_keyboard: keyboard })
-			await ctx.answerCbQuery('Меню заявки')
-			return
-		}
-		if (data.startsWith('cancel_templates:')) {
-			// Скрыть меню шаблонов (больше не используем, но оставим на всякий случай)
-			await ctx.editMessageReplyMarkup({ inline_keyboard: [] })
-			await ctx.answerCbQuery('Отменено')
-			return
-		}
-		// --- /Шаблоны ответов ---
-
-		// --- Существующая логика ---
 		if (data.startsWith('ask_')) {
 			const userId = data.split('_')[1]
 			console.log(`❓ Обработка запроса на вопрос для пользователя ${userId}`)
