@@ -28,6 +28,24 @@ const {
  */
 const pendingQuestions = new Map()
 
+// --- Шаблоны ответов ---
+const REPLY_TEMPLATES = [
+	{
+		id: 'video',
+		button: 'Видео-кружочек',
+		text: `Чтобы мы могли убедиться, что вы не бот, а живой человек, запишите, пожалуйста, видео-кружочек, где вы рядом с колесом. Это займет всего пару секунд😊`,
+	},
+	{
+		id: 'mono',
+		button: 'Только моноколеса',
+		text: `Привет! Наша группа — только для владельцев моноколёс.
+Без колеса, увы, доступ закрыт.
+Но зато у нас есть отличная моношкола @MonoPiterSchool — приходи учиться! 😉
+Возвращайся к нам, когда будешь на моноколесе!`,
+	},
+	// Можно добавить новые шаблоны здесь
+]
+
 /**
  * Обрабатывает нажатие на кнопку задания вопроса
  * @async
@@ -89,7 +107,7 @@ ${
 					force_reply: true,
 					selective: true,
 					inline_keyboard: [
-						[{ text: "Отмена", callback_data: `cancel_question_${userIdNum}` }]
+						[{ text: 'Отмена', callback_data: `cancel_question_${userIdNum}` }],
 					],
 				},
 				parse_mode: 'HTML',
@@ -307,9 +325,9 @@ async function sendAdminQuestion(bot, ctx) {
 			{
 				reply_markup: {
 					inline_keyboard: [
-						[{ text: 'Задать вопрос', callback_data: `ask_${targetUserId}` }]
-					]
-				}
+						[{ text: 'Задать вопрос', callback_data: `ask_${targetUserId}` }],
+					],
+				},
 			}
 		)
 
@@ -525,11 +543,22 @@ async function handleUserReply(bot, ctx) {
 			}
 		} else {
 			// Если нет медиа-файла, отправляем текстовое сообщение
-			const adminMessage = `💬 <b>Ответ от пользователя ${userLink}:</b>
-${message}
-            `.trim()
-
-			// Отправляем сообщение с кнопкой вопроса
+			const adminMessage =
+				`💬 <b>Ответ от пользователя ${userLink}:</b>\n${message}`.trim()
+			const replyMarkup = {
+				inline_keyboard: [
+					[
+						{ text: '✅ Принять', callback_data: `accept_user:${userId}` },
+						{ text: '❓ Задать вопрос', callback_data: `ask_${userId}` },
+					],
+					[
+						{
+							text: 'Шаблоны ответов',
+							callback_data: `reply_templates:${userId}`,
+						},
+					],
+				],
+			}
 			const sentMsg = await sendTelegramMessage(
 				bot,
 				ADMIN_CHAT_ID,
@@ -537,12 +566,7 @@ ${message}
 				{
 					message_thread_id: LAMP_THREAD_ID,
 					parse_mode: 'HTML',
-					reply_markup: {
-						inline_keyboard: [
-							[{ text: '✅ Принять', callback_data: `accept_user:${userId}` }],
-							[{ text: '❓ Задать вопрос', callback_data: `ask_${userId}` }],
-						],
-					},
+					reply_markup: replyMarkup,
 				}
 			)
 
@@ -561,7 +585,7 @@ ${message}
 }
 
 /**
- * Обрабатывает нажатия на кнопки управления заявками
+ * Обрабатывает нажатия на кнопки управления заявками и шаблонами ответов
  * @async
  * @param {Object} bot - Экземпляр бота Telegraf
  * @param {Object} ctx - Контекст callback query
@@ -573,10 +597,138 @@ async function handleJoinRequestCallback(bot, ctx) {
 
 		if (!data) {
 			console.error('❌ Получены пустые данные callback')
-			return // Не отвечаем на callback здесь
+			return
 		}
 
-		// Разбираем данные callback для определения действия
+		// --- Шаблоны ответов ---
+		if (data.startsWith('reply_templates:')) {
+			// Открыть меню шаблонов отдельным сообщением (reply на заявку)
+			const userId = data.split(':')[1]
+			const keyboard = REPLY_TEMPLATES.map(tpl => [
+				{
+					text: tpl.button || tpl.text.slice(0, 20) + '...',
+					callback_data: `choose_template:${userId}:${tpl.id}`,
+				},
+			])
+			keyboard.push([
+				{ text: 'Назад', callback_data: `back_to_request_menu:${userId}` },
+			])
+			// Отправляем только если это callback с кнопки в заявке (иначе редактируем)
+			if (
+				ctx.callbackQuery.message.reply_to_message ||
+				ctx.callbackQuery.message.text.includes('подал(а) заявку')
+			) {
+				// reply на заявку
+				await bot.telegram.sendMessage(ctx.chat.id, 'Выберите шаблон ответа:', {
+					reply_markup: { inline_keyboard: keyboard },
+					reply_to_message_id: ctx.callbackQuery.message.message_id,
+				})
+			} else {
+				// если это уже меню шаблонов — просто редактируем
+				await ctx.editMessageText('Выберите шаблон ответа:', {
+					reply_markup: { inline_keyboard: keyboard },
+				})
+			}
+			await ctx.answerCbQuery('Выберите шаблон ответа')
+			return
+		}
+		if (data.startsWith('choose_template:')) {
+			// Подтверждение отправки шаблона — редактируем текущее сообщение
+			const [, userId, templateId] = data.split(':')
+			const template = REPLY_TEMPLATES.find(t => t.id === templateId)
+			if (!template) {
+				await ctx.answerCbQuery('Шаблон не найден')
+				return
+			}
+			const confirmKeyboard = [
+				[
+					{
+						text: 'Отправить',
+						callback_data: `send_template:${userId}:${templateId}`,
+					},
+					{ text: 'Назад', callback_data: `reply_templates:${userId}` },
+				],
+			]
+			await ctx.editMessageText(
+				`Выбран шаблон:\n\n<code>${template.text}</code>\n\nОтправить в личку пользователю?`,
+				{
+					parse_mode: 'HTML',
+					reply_markup: { inline_keyboard: confirmKeyboard },
+				}
+			)
+			await ctx.answerCbQuery()
+			return
+		}
+		if (data.startsWith('send_template:')) {
+			// Отправка шаблона в личку, уведомляем об успехе/ошибке, не удаляем сообщение
+			const [, userId, templateId] = data.split(':')
+			const template = REPLY_TEMPLATES.find(t => t.id === templateId)
+			if (!template) {
+				await ctx.answerCbQuery('Шаблон не найден')
+				return
+			}
+			try {
+				await bot.telegram.sendMessage(userId, template.text)
+				// Получаем username и имя пользователя для уведомления
+				let userInfo = `ID: ${userId}`
+				try {
+					const user = await bot.telegram.getChat(userId)
+					if (user.username) {
+						userInfo = `@${user.username} (ID: ${userId})`
+					} else if (user.first_name || user.last_name) {
+						userInfo = `${user.first_name || ''} ${
+							user.last_name || ''
+						} (ID: ${userId})`
+					}
+				} catch (e) {
+					/* ignore */
+				}
+				await ctx.editMessageText(
+					`✅ Сообщение отправлено пользователю ${userInfo}.`,
+					{
+						reply_markup: { inline_keyboard: [] },
+					}
+				)
+				await ctx.answerCbQuery('Шаблон отправлен')
+			} catch (err) {
+				await ctx.editMessageText(
+					'❌ Не удалось отправить шаблон пользователю. Возможно, он заблокировал бота.',
+					{
+						reply_markup: { inline_keyboard: [] },
+					}
+				)
+				await ctx.answerCbQuery('Ошибка отправки')
+			}
+			return
+		}
+		if (data.startsWith('back_to_request_menu:')) {
+			// Возврат к начальному меню (кнопки "Задать вопрос", "Бан", "Шаблоны ответов")
+			const userId = data.split(':')[1]
+			const keyboard = [
+				[
+					{ text: '❓ Задать вопрос', callback_data: `ask_${userId}` },
+					{ text: '❌ Бан', callback_data: `ban_user:${userId}` },
+				],
+				[
+					{
+						text: 'Шаблоны ответов',
+						callback_data: `reply_templates:${userId}`,
+					},
+				],
+			]
+			await ctx.editMessageReplyMarkup({ inline_keyboard: keyboard })
+			await ctx.answerCbQuery('Меню заявки')
+			return
+		}
+		if (data.startsWith('cancel_templates:')) {
+			// Скрыть меню шаблонов (больше не используем, но оставим на всякий случай)
+			await ctx.editMessageReplyMarkup({ inline_keyboard: [] })
+			await ctx.answerCbQuery('Отменено')
+			return
+		}
+		// --- /Шаблоны ответов ---
+
+		// --- Существующая логика ---
 		if (data.startsWith('ask_')) {
 			const userId = data.split('_')[1]
 			console.log(`❓ Обработка запроса на вопрос для пользователя ${userId}`)
@@ -585,16 +737,18 @@ async function handleJoinRequestCallback(bot, ctx) {
 			// Обработка нажатия на кнопку "Отмена" при запросе вопроса
 			const userId = parseInt(data.split('_')[2], 10)
 			const adminId = ctx.from.id
-			
-			console.log(`❌ Отмена запроса вопроса для пользователя ${userId} от админа ${adminId}`)
-			
+
+			console.log(
+				`❌ Отмена запроса вопроса для пользователя ${userId} от админа ${adminId}`
+			)
+
 			// Удаляем все запросы для этого пользователя от данного админа
 			for (const [key, data] of pendingQuestions.entries()) {
 				if (data.userId === userId && data.adminId === adminId) {
 					pendingQuestions.delete(key)
 				}
 			}
-			
+
 			// Удаляем сообщение с запросом вопроса
 			try {
 				await ctx.deleteMessage()
@@ -605,13 +759,13 @@ async function handleJoinRequestCallback(bot, ctx) {
 				try {
 					await ctx.editMessageText(`<b>Вопрос для пользователя отменен</b>`, {
 						parse_mode: 'HTML',
-						reply_markup: { inline_keyboard: [] } // Убираем все кнопки
+						reply_markup: { inline_keyboard: [] }, // Убираем все кнопки
 					})
 				} catch (editError) {
 					console.error(`❌ Ошибка при редактировании сообщения:`, editError)
 				}
 			}
-			
+
 			// Отвечаем на callback запрос
 			if (ctx.callbackQuery && typeof ctx.callbackQuery.answer === 'function') {
 				await ctx.callbackQuery.answer('Запрос вопроса отменен')

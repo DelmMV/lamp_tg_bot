@@ -15,7 +15,10 @@ const {
 	isUserAccessError,
 	formatUserAccessError,
 } = require('../utils/errorHandler')
-const { getCachedSpamAnalysis, formatSpamAnalysisResult } = require('../utils/spamDetection')
+const {
+	getCachedSpamAnalysis,
+	formatSpamAnalysisResult,
+} = require('../utils/spamDetection')
 
 /**
  * Обрабатывает новых участников чата
@@ -156,7 +159,7 @@ async function handleChatJoinRequest(bot, ctx) {
 		// Анализируем пользователя на предмет спам-аккаунта, если модуль включен
 		let spamAnalysis = null
 		let spamAnalysisText = null
-		
+
 		// Проверяем, включен ли модуль анализа спам-аккаунтов
 		if (MODULES.SPAM_DETECTION.ENABLED) {
 			// Анализируем пользователя с использованием кэша
@@ -228,8 +231,7 @@ async function handleChatJoinRequest(bot, ctx) {
 			}
 		}
 
-		// Создаем клавиатуру с кнопками "Задать вопрос" и "Бан"
-		// Если пользователь заблокировал бота, добавляем информативный текст к кнопке
+		// Создаем клавиатуру с кнопками "Задать вопрос", "Бан" и "Шаблоны ответов"
 		const askQuestionText =
 			userStatus === 'blocked_bot'
 				? '❓ Задать вопрос (пользователь заблокировал бота)'
@@ -240,6 +242,12 @@ async function handleChatJoinRequest(bot, ctx) {
 				[
 					{ text: askQuestionText, callback_data: `ask_${from.id}` },
 					{ text: '❌ Бан', callback_data: `ban_user:${from.id}` },
+				],
+				[
+					{
+						text: 'Шаблоны ответов',
+						callback_data: `reply_templates:${from.id}`,
+					},
 				],
 			],
 		}
@@ -254,14 +262,20 @@ async function handleChatJoinRequest(bot, ctx) {
 			})
 
 			// Отправляем результаты анализа на спам, если модуль включен и вероятность выше порога
-			if (MODULES.SPAM_DETECTION.ENABLED && spamAnalysis && 
-			    spamAnalysis.spamProbability >= MODULES.SPAM_DETECTION.MIN_PROBABILITY_THRESHOLD) {
+			if (
+				MODULES.SPAM_DETECTION.ENABLED &&
+				spamAnalysis &&
+				spamAnalysis.spamProbability >=
+					MODULES.SPAM_DETECTION.MIN_PROBABILITY_THRESHOLD
+			) {
 				try {
 					await sendTelegramMessage(bot, ADMIN_CHAT_ID, spamAnalysisText, {
 						message_thread_id: LAMP_THREAD_ID,
 						parse_mode: 'HTML',
 					})
-					console.log(`✅ Отправлен анализ спам-аккаунта для пользователя ${from.id} (вероятность: ${spamAnalysis.spamProbability}%)`)
+					console.log(
+						`✅ Отправлен анализ спам-аккаунта для пользователя ${from.id} (вероятность: ${spamAnalysis.spamProbability}%)`
+					)
 				} catch (spamAnalysisError) {
 					console.error(
 						'❌ Не удалось отправить анализ спам-аккаунта:',
@@ -269,7 +283,9 @@ async function handleChatJoinRequest(bot, ctx) {
 					)
 				}
 			} else if (MODULES.SPAM_DETECTION.ENABLED && spamAnalysis) {
-				console.log(`ℹ️ Низкая вероятность спама (${spamAnalysis.spamProbability}%) для пользователя ${from.id}, ниже порога ${MODULES.SPAM_DETECTION.MIN_PROBABILITY_THRESHOLD}%`)
+				console.log(
+					`ℹ️ Низкая вероятность спама (${spamAnalysis.spamProbability}%) для пользователя ${from.id}, ниже порога ${MODULES.SPAM_DETECTION.MIN_PROBABILITY_THRESHOLD}%`
+				)
 			}
 		} catch (adminMsgError) {
 			console.error(
