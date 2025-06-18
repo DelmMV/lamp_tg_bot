@@ -131,6 +131,21 @@ const config = {
 			REPORT_CHAT_ID: parseInt(process.env.MODERATOR_CHAT_ID, 10),
 			REPORT_THREAD_ID: parseInt(process.env.MODERATOR_THREAD_ID, 10),
 		},
+
+		// Обнаружение нецензурной лексики
+		FORBIDDEN_WORDS: {
+			// Включение/отключение модуля
+			ENABLED: true,
+			// Чат и тред для отчетов о нецензурной лексике
+			REPORT_CHAT_ID: parseInt(process.env.MODERATOR_CHAT_ID, 10),
+			REPORT_THREAD_ID: parseInt(process.env.MODERATOR_THREAD_ID, 10),
+			// Настройки ответа пользователю
+			REPLY_TO_USER: true,
+			// Показывать ли слово модераторам
+			SHOW_WORD_TO_MODS: true,
+			// Показывать ли слово пользователю
+			SHOW_WORD_TO_USER: false,
+		},
 	},
 }
 

@@ -97,6 +97,9 @@ async function checkForbiddenWords(bot, ctx) {
 	const messageText = ctx.message.text
 	if (!messageText || ctx.message.chat.id !== MONO_PITER_CHAT_ID) return false
 
+	// Проверяем, включен ли модуль
+	if (!MODULES.FORBIDDEN_WORDS.ENABLED) return false
+
 	try {
 		const result = containsForbiddenWords(messageText)
 		if (result.found) {
@@ -108,30 +111,37 @@ async function checkForbiddenWords(bot, ctx) {
 					Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)
 				]
 
-			// Ответ пользователю
-			await ctx.reply(
-				`Ваше сообщение содержит недопустимое слово: <tg-spoiler>${result.word}</tg-spoiler>\nПожалуйста, соблюдайте культуру общения нашего сообщества.\n\n💭 <i>${randomQuote}</i>`,
-				{
+			// Ответ пользователю, если включено
+			if (MODULES.FORBIDDEN_WORDS.REPLY_TO_USER) {
+				const userMessage = `Ваше сообщение содержит недопустимое слово${
+					MODULES.FORBIDDEN_WORDS.SHOW_WORD_TO_USER
+						? `: <tg-spoiler>${result.word}</tg-spoiler>`
+						: ''
+				}\nПожалуйста, соблюдайте культуру общения нашего сообщества.\n\n💭 <i>${randomQuote}</i>`
+
+				await ctx.reply(userMessage, {
 					reply_to_message_id: ctx.message.message_id,
 					parse_mode: 'HTML',
-				}
-			)
+				})
+			}
 
 			// Уведомление модераторам
 			const moderMessage = `В <a href="${messageLink}">сообщении</a> от <a href="tg://user?id=${
 				ctx.message.from.id
 			}">${ctx.message.from.first_name} ${
 				ctx.message.from.last_name || ''
-			}</a> обнаружены не допустимые слова!\nЗапрещенное слово: "${
-				result.word
-			}"`
+			}</a> обнаружены не допустимые слова!${
+				MODULES.FORBIDDEN_WORDS.SHOW_WORD_TO_MODS
+					? `\nЗапрещенное слово: "${result.word}"`
+					: ''
+			}`
 
 			await sendTelegramMessage(
 				bot,
-				MODULES.SPAM_DETECTION.REPORT_CHAT_ID,
+				MODULES.FORBIDDEN_WORDS.REPORT_CHAT_ID,
 				moderMessage,
 				{
-					message_thread_id: MODULES.SPAM_DETECTION.REPORT_THREAD_ID,
+					message_thread_id: MODULES.FORBIDDEN_WORDS.REPORT_THREAD_ID,
 					parse_mode: 'HTML',
 				}
 			)
