@@ -117,8 +117,8 @@ async function checkForbiddenWords(bot, ctx) {
 				}
 			)
 
-			// Уведомление админам
-			const adminMessage = `В <a href="${messageLink}">сообщении</a> от <a href="tg://user?id=${
+			// Уведомление модераторам
+			const moderMessage = `В <a href="${messageLink}">сообщении</a> от <a href="tg://user?id=${
 				ctx.message.from.id
 			}">${ctx.message.from.first_name} ${
 				ctx.message.from.last_name || ''
@@ -126,10 +126,15 @@ async function checkForbiddenWords(bot, ctx) {
 				result.word
 			}"`
 
-			await sendTelegramMessage(bot, ADMIN_CHAT_ID, adminMessage, {
-				message_thread_id: LAMP_THREAD_ID,
-				parse_mode: 'HTML',
-			})
+			await sendTelegramMessage(
+				bot,
+				MODULES.SPAM_DETECTION.REPORT_CHAT_ID,
+				moderMessage,
+				{
+					message_thread_id: MODULES.SPAM_DETECTION.REPORT_THREAD_ID,
+					parse_mode: 'HTML',
+				}
+			)
 
 			return true
 		}
