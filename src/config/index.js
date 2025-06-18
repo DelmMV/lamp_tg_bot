@@ -102,8 +102,8 @@ const config = {
 			// Минимальный порог вероятности спама для отображения анализа
 			MIN_PROBABILITY_THRESHOLD: 30,
 			// Чат и тред для отчетов
-			REPORT_CHAT_ID: parseInt(process.env.MODERATOR_CHAT_ID, 10),
-			REPORT_THREAD_ID: parseInt(process.env.MODERATOR_THREAD_ID, 10),
+			REPORT_CHAT_ID: parseInt(process.env.ADMIN_CHAT, 10),
+			REPORT_THREAD_ID: parseInt(process.env.MESSAGE_THREAD_ID_ADMIN_CHAT, 10),
 		},
 
 		// Обнаружение рекламы
