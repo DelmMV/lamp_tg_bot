@@ -163,10 +163,12 @@ async function handleSummaryCommand(bot, ctx) {
 		// Проверяем, включен ли модуль сводки чата
 		if (!MODULES.CHAT_SUMMARY.ENABLED) {
 			console.log(`❌ Модуль сводки чата отключен`)
-			await ctx.reply('❗ Модуль сводки чата отключен в настройках. Для использования команды /summary включите модуль в конфигурации.')
+			await ctx.reply(
+				'❗ Модуль сводки чата отключен в настройках. Для использования команды /summary включите модуль в конфигурации.'
+			)
 			return
 		}
-		
+
 		// Отладка: выводим ID чата и ID из конфига
 		console.log(
 			`📊 Команда /summary: chat.id=${ctx.chat.id}, ADMIN_CHAT_ID=${ADMIN_CHAT_ID}`
@@ -218,10 +220,15 @@ async function handleSummaryCommand(bot, ctx) {
 		const title = `📊 <b>Сводка чата ${periodInfo}</b>\n\n`
 
 		// Отправляем сводку с полным текстом
-		await sendTelegramMessage(bot, ADMIN_CHAT_ID, title + summary, {
-			message_thread_id: LAMP_THREAD_ID,
-			parse_mode: 'HTML',
-		})
+		await sendTelegramMessage(
+			bot,
+			MODULES.CHAT_SUMMARY.REPORT_CHAT_ID,
+			title + summary,
+			{
+				message_thread_id: MODULES.CHAT_SUMMARY.REPORT_THREAD_ID,
+				parse_mode: 'HTML',
+			}
+		)
 
 		// Удаляем сообщение о генерации
 		await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id)

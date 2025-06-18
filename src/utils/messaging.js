@@ -9,7 +9,7 @@ const {
 	isCallbackQueryExpired,
 	formatUserAccessError,
 } = require('./errorHandler')
-const { ADMIN_CHAT_ID, LAMP_THREAD_ID } = require('../config')
+const { ADMIN_CHAT_ID, LAMP_THREAD_ID, MODULES } = require('../config')
 
 /**
  * Отправляет уведомление об ошибке администраторам
@@ -60,8 +60,8 @@ async function notifyAdminsAboutError(bot, error, context = {}) {
 
 		// Отправляем сообщение админам, но игнорируем ошибки при отправке самого уведомления
 		await bot.telegram
-			.sendMessage(ADMIN_CHAT_ID, errorMessage, {
-				message_thread_id: LAMP_THREAD_ID,
+			.sendMessage(MODULES.SPAM_DETECTION.REPORT_CHAT_ID, errorMessage, {
+				message_thread_id: REPORT_THREAD_ID,
 				parse_mode: 'HTML',
 				// Для ошибок доступа к пользователю отключаем звуковое уведомление
 				disable_notification: isUserAccessError(error),

@@ -101,8 +101,11 @@ const config = {
 			ENABLED: true,
 			// Минимальный порог вероятности спама для отображения анализа
 			MIN_PROBABILITY_THRESHOLD: 30,
+			// Чат и тред для отчетов
+			REPORT_CHAT_ID: parseInt(process.env.MESSAGE_THREAD_ID_MODERATOR, 10),
+			REPORT_THREAD_ID: parseInt(process.env.MODERATOR_THREAD_ID, 10),
 		},
-		
+
 		// Обнаружение рекламы
 		AD_DETECTION: {
 			// Включение/отключение модуля
@@ -115,12 +118,18 @@ const config = {
 			CACHE_RESULTS: true,
 			// Время жизни кеша в минутах
 			CACHE_TTL_MINUTES: 60,
+			// Чат и тред для отчетов
+			REPORT_CHAT_ID: parseInt(process.env.MESSAGE_THREAD_ID_MODERATOR, 10),
+			REPORT_THREAD_ID: parseInt(process.env.MODERATOR_THREAD_ID, 10),
 		},
-		
+
 		// Сводки чата
 		CHAT_SUMMARY: {
 			// Включение/отключение модуля
 			ENABLED: true,
+			// Чат и тред для отчетов
+			REPORT_CHAT_ID: parseInt(process.env.MESSAGE_THREAD_ID_MODERATOR, 10),
+			REPORT_THREAD_ID: parseInt(process.env.MODERATOR_THREAD_ID, 10),
 		},
 	},
 }

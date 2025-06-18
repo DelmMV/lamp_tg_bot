@@ -8,6 +8,7 @@ const {
 	LAMP_THREAD_ID,
 	MONO_PITER_CHAT_ID,
 	JOIN_REQUEST,
+	MODULES,
 } = require('../config')
 const { banUser, connectToDatabase, getDb } = require('../db')
 
@@ -102,13 +103,13 @@ async function checkAndCancelExpiredRequests(bot) {
 
 						// Отправляем уведомление в админ-канал
 						await bot.telegram.sendMessage(
-							ADMIN_CHAT_ID,
+							MODULES.SPAM_DETECTION.REPORT_CHAT_ID,
 							`⚠️ <b>Заявка автоматически отменена</b>\n\n` +
 								`👤 Пользователь: ID ${request.userId}\n` +
 								`❌ Причина: Пользователь недействителен (возможно удалил аккаунт)\n` +
 								`⏱ Время создания: ${request.createdAt.toLocaleString()}`,
 							{
-								message_thread_id: LAMP_THREAD_ID,
+								message_thread_id: MODULES.SPAM_DETECTION.REPORT_THREAD_ID,
 								parse_mode: 'HTML',
 							}
 						)
@@ -289,7 +290,7 @@ async function checkAndCancelExpiredRequests(bot) {
 								: `${adminMinutes} мин.`
 
 						await bot.telegram.sendMessage(
-							ADMIN_CHAT_ID,
+							MODULES.SPAM_DETECTION.REPORT_CHAT_ID,
 							`⚠️ <b>Заявка автоматически отменена</b>\n\n` +
 								`👤 Пользователь: <a href="tg://user?id=${request.userId}">${
 									request.username || 'Неизвестный'
@@ -297,7 +298,7 @@ async function checkAndCancelExpiredRequests(bot) {
 								`⏱ Время создания: ${request.createdAt.toLocaleString()}\n` +
 								`⏳ Время жизни: ${adminTimeFormat}`,
 							{
-								message_thread_id: LAMP_THREAD_ID,
+								message_thread_id: MODULES.SPAM_DETECTION.REPORT_THREAD_ID,
 								parse_mode: 'HTML',
 							}
 						)
@@ -375,14 +376,14 @@ async function checkAndCancelExpiredRequests(bot) {
 					)
 
 					await bot.telegram.sendMessage(
-						ADMIN_CHAT_ID,
+						MODULES.SPAM_DETECTION.REPORT_CHAT_ID,
 						`⚠️ <b>Ошибка при отмене заявки</b>\n\n` +
 							`👤 Пользователь: <a href="tg://user?id=${request.userId}">${
 								request.username || 'Неизвестный'
 							}</a>\n` +
 							`❌ Ошибка: ${error.message}`,
 						{
-							message_thread_id: LAMP_THREAD_ID,
+							message_thread_id: MODULES.SPAM_DETECTION.REPORT_THREAD_ID,
 							parse_mode: 'HTML',
 						}
 					)

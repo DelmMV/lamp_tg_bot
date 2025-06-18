@@ -12,6 +12,7 @@ const {
 	ADMIN_CHAT_ID,
 	LAMP_THREAD_ID,
 	JOIN_REQUEST,
+	MODULES,
 } = require('./config')
 const { containsForbiddenWords } = require('./utils/contentFilter')
 const { hasMediaHashtag } = require('./utils/helpers')

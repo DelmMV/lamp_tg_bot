@@ -53,10 +53,15 @@ async function handleNewChatMembers(bot, ctx) {
 		)
 
 		// Отправляем уведомление администраторам
-		await sendTelegramMessage(bot, ADMIN_CHAT_ID, message, {
-			message_thread_id: LAMP_THREAD_ID,
-			parse_mode: 'HTML',
-		})
+		await sendTelegramMessage(
+			bot,
+			MODULES.SPAM_DETECTION.REPORT_CHAT_ID,
+			message,
+			{
+				message_thread_id: MODULES.SPAM_DETECTION.REPORT_THREAD_ID,
+				parse_mode: 'HTML',
+			}
+		)
 
 		// Отправляем приветственное сообщение новому участнику
 		try {
@@ -78,14 +83,14 @@ async function handleNewChatMembers(bot, ctx) {
 			if (isUserAccessError(messageError)) {
 				await sendTelegramMessage(
 					bot,
-					ADMIN_CHAT_ID,
+					MODULES.SPAM_DETECTION.REPORT_CHAT_ID,
 					`Не удалось отправить приветственное сообщение пользователю ${
 						new_chat_member.first_name
 					} ${new_chat_member.last_name || ''}: ${formatUserAccessError(
 						messageError,
 						new_chat_member.id
 					)}`,
-					{ message_thread_id: LAMP_THREAD_ID }
+					{ message_thread_id: MODULES.SPAM_DETECTION.REPORT_THREAD_ID }
 				)
 			}
 		}
@@ -99,11 +104,11 @@ async function handleNewChatMembers(bot, ctx) {
 		) {
 			await sendTelegramMessage(
 				bot,
-				ADMIN_CHAT_ID,
+				MODULES.SPAM_DETECTION.REPORT_CHAT_ID,
 				`Произошла ошибка при обработке нового участника ${
 					new_chat_member.first_name
 				} ${new_chat_member.last_name || ''}: ${error.description}`,
-				{ message_thread_id: LAMP_THREAD_ID }
+				{ message_thread_id: MODULES.SPAM_DETECTION.REPORT_THREAD_ID }
 			)
 		}
 	}
@@ -255,11 +260,16 @@ async function handleChatJoinRequest(bot, ctx) {
 		// Отправляем сообщение админам с кнопкой вопроса
 		let sentMsg
 		try {
-			sentMsg = await sendTelegramMessage(bot, ADMIN_CHAT_ID, adminMessage, {
-				message_thread_id: LAMP_THREAD_ID,
-				parse_mode: 'HTML',
-				reply_markup: keyboard,
-			})
+			sentMsg = await sendTelegramMessage(
+				bot,
+				MODULES.SPAM_DETECTION.REPORT_CHAT_ID,
+				adminMessage,
+				{
+					message_thread_id: MODULES.SPAM_DETECTION.REPORT_THREAD_ID,
+					parse_mode: 'HTML',
+					reply_markup: keyboard,
+				}
+			)
 
 			// Отправляем результаты анализа на спам, если модуль включен и вероятность выше порога
 			if (
@@ -269,10 +279,15 @@ async function handleChatJoinRequest(bot, ctx) {
 					MODULES.SPAM_DETECTION.MIN_PROBABILITY_THRESHOLD
 			) {
 				try {
-					await sendTelegramMessage(bot, ADMIN_CHAT_ID, spamAnalysisText, {
-						message_thread_id: LAMP_THREAD_ID,
-						parse_mode: 'HTML',
-					})
+					await sendTelegramMessage(
+						bot,
+						MODULES.SPAM_DETECTION.REPORT_CHAT_ID,
+						spamAnalysisText,
+						{
+							message_thread_id: MODULES.SPAM_DETECTION.REPORT_THREAD_ID,
+							parse_mode: 'HTML',
+						}
+					)
 					console.log(
 						`✅ Отправлен анализ спам-аккаунта для пользователя ${from.id} (вероятность: ${spamAnalysis.spamProbability}%)`
 					)
@@ -314,9 +329,12 @@ async function handleChatJoinRequest(bot, ctx) {
 			try {
 				await sendTelegramMessage(
 					bot,
-					ADMIN_CHAT_ID,
+					MODULES.SPAM_DETECTION.REPORT_CHAT_ID,
 					`⚠️ <b>Ошибка сохранения заявки в БД</b> для пользователя ${from.id}: ${dbError.message}`,
-					{ message_thread_id: LAMP_THREAD_ID, parse_mode: 'HTML' }
+					{
+						message_thread_id: MODULES.SPAM_DETECTION.REPORT_THREAD_ID,
+						parse_mode: 'HTML',
+					}
 				)
 			} catch (notifyError) {
 				console.error(

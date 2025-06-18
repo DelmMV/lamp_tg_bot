@@ -17,6 +17,7 @@ const {
 	ADMIN_CHAT_ID,
 	MONO_PITER_CHAT_ID,
 	LAMP_THREAD_ID,
+	MODULES,
 } = require('../config')
 const { handleMediaGroup, handleSingleMessage } = require('./mediaHandler')
 const MOTIVATIONAL_QUOTES = require('../data/quotes')

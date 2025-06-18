@@ -20,6 +20,7 @@ const {
 	ADMIN_CHAT_ID,
 	LAMP_THREAD_ID,
 	MONO_PITER_CHAT_ID,
+	MODULES,
 } = require('../config')
 
 /**
@@ -433,7 +434,7 @@ async function handleUserReply(bot, ctx) {
 			let mediaType = ''
 			let mediaFileId = ''
 			let mediaOptions = {
-				message_thread_id: LAMP_THREAD_ID,
+				message_thread_id: MODULES.SPAM_DETECTION.REPORT_THREAD_ID,
 				parse_mode: 'HTML',
 				reply_markup: {
 					inline_keyboard: [
@@ -449,7 +450,7 @@ async function handleUserReply(bot, ctx) {
 					mediaFileId = ctx.message.photo[ctx.message.photo.length - 1].file_id
 					mediaOptions.caption = `📸 Фото от ${userLink}`
 					const sentMsg = await bot.telegram.sendPhoto(
-						ADMIN_CHAT_ID,
+						MODULES.SPAM_DETECTION.REPORT_CHAT_ID,
 						mediaFileId,
 						mediaOptions
 					)
@@ -459,7 +460,7 @@ async function handleUserReply(bot, ctx) {
 					mediaFileId = ctx.message.video.file_id
 					mediaOptions.caption = `🎥 Видео от ${userLink}`
 					const sentMsg = await bot.telegram.sendVideo(
-						ADMIN_CHAT_ID,
+						MODULES.SPAM_DETECTION.REPORT_CHAT_ID,
 						mediaFileId,
 						mediaOptions
 					)
@@ -469,17 +470,21 @@ async function handleUserReply(bot, ctx) {
 					mediaFileId = ctx.message.video_note.file_id
 
 					// Сначала отправляем сам видео-кружок без кнопок
-					await bot.telegram.sendVideoNote(ADMIN_CHAT_ID, mediaFileId, {
-						message_thread_id: LAMP_THREAD_ID,
-					})
+					await bot.telegram.sendVideoNote(
+						MODULES.SPAM_DETECTION.REPORT_CHAT_ID,
+						mediaFileId,
+						{
+							message_thread_id: MODULES.SPAM_DETECTION.REPORT_THREAD_ID,
+						}
+					)
 
 					// Затем отправляем текстовое сообщение с кнопками
 					const sentMsg = await sendTelegramMessage(
 						bot,
-						ADMIN_CHAT_ID,
+						MODULES.SPAM_DETECTION.REPORT_CHAT_ID,
 						`📹 <b>Видео-сообщение от ${userLink}</b>`,
 						{
-							message_thread_id: LAMP_THREAD_ID,
+							message_thread_id: MODULES.SPAM_DETECTION.REPORT_THREAD_ID,
 							parse_mode: 'HTML',
 							reply_markup: {
 								inline_keyboard: [
@@ -505,7 +510,7 @@ async function handleUserReply(bot, ctx) {
 					mediaFileId = ctx.message.voice.file_id
 					mediaOptions.caption = `🎤 Голосовое сообщение от ${userLink}`
 					const sentMsg = await bot.telegram.sendVoice(
-						ADMIN_CHAT_ID,
+						MODULES.SPAM_DETECTION.REPORT_CHAT_ID,
 						mediaFileId,
 						mediaOptions
 					)
@@ -515,7 +520,7 @@ async function handleUserReply(bot, ctx) {
 					mediaFileId = ctx.message.audio.file_id
 					mediaOptions.caption = `🎵 Аудио от ${userLink}`
 					const sentMsg = await bot.telegram.sendAudio(
-						ADMIN_CHAT_ID,
+						MODULES.SPAM_DETECTION.REPORT_CHAT_ID,
 						mediaFileId,
 						mediaOptions
 					)
@@ -525,7 +530,7 @@ async function handleUserReply(bot, ctx) {
 					mediaFileId = ctx.message.document.file_id
 					mediaOptions.caption = `📄 Документ от ${userLink}`
 					const sentMsg = await bot.telegram.sendDocument(
-						ADMIN_CHAT_ID,
+						MODULES.SPAM_DETECTION.REPORT_CHAT_ID,
 						mediaFileId,
 						mediaOptions
 					)
@@ -536,9 +541,12 @@ async function handleUserReply(bot, ctx) {
 				// Отправляем уведомление об ошибке администраторам
 				await sendTelegramMessage(
 					bot,
-					ADMIN_CHAT_ID,
+					MODULES.SPAM_DETECTION.REPORT_CHAT_ID,
 					`⚠️ <b>Ошибка при отправке медиафайла от ${userLink}</b>:\n${mediaError.message}`,
-					{ message_thread_id: LAMP_THREAD_ID, parse_mode: 'HTML' }
+					{
+						message_thread_id: MODULES.SPAM_DETECTION.REPORT_THREAD_ID,
+						parse_mode: 'HTML',
+					}
 				)
 			}
 		} else {
@@ -561,10 +569,10 @@ async function handleUserReply(bot, ctx) {
 			}
 			const sentMsg = await sendTelegramMessage(
 				bot,
-				ADMIN_CHAT_ID,
+				MODULES.SPAM_DETECTION.REPORT_CHAT_ID,
 				adminMessage,
 				{
-					message_thread_id: LAMP_THREAD_ID,
+					message_thread_id: MODULES.SPAM_DETECTION.REPORT_THREAD_ID,
 					parse_mode: 'HTML',
 					reply_markup: replyMarkup,
 				}

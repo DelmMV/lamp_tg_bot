@@ -1,5 +1,5 @@
 const axios = require('axios')
-const { ADMIN_CHAT_ID, LAMP_THREAD_ID } = require('../config')
+const { ADMIN_CHAT_ID, LAMP_THREAD_ID, MODULES } = require('../config')
 const { sendTelegramMessage } = require('./messaging')
 
 // Инициализация OpenRouter API
@@ -67,18 +67,18 @@ ${preparedMessages.join('\n')}`
 				messages: [
 					{
 						role: 'user',
-						content: prompt
-					}
+						content: prompt,
+					},
 				],
-				max_tokens: 1500
+				max_tokens: 1500,
 			},
 			{
 				headers: {
-					'Authorization': `Bearer ${OPENROUTER_API_KEY2}`,
+					Authorization: `Bearer ${OPENROUTER_API_KEY2}`,
 					'Content-Type': 'application/json',
 					'HTTP-Referer': 'https://lamp_tg_bot', // Указываем источник запроса
-					'X-Title': 'Lamp Telegram Bot' // Название приложения
-				}
+					'X-Title': 'Lamp Telegram Bot', // Название приложения
+				},
 			}
 		)
 
@@ -99,9 +99,12 @@ async function sendSummaryToAdmin(bot, summary) {
 	try {
 		await sendTelegramMessage(
 			bot,
-			ADMIN_CHAT_ID,
+			MODULES.CHAT_SUMMARY.REPORT_CHAT_ID,
 			`📊 <b>Ежедневная сводка чата</b>\n\n${summary}`,
-			{ message_thread_id: LAMP_THREAD_ID, parse_mode: 'HTML' }
+			{
+				message_thread_id: MODULES.CHAT_SUMMARY.REPORT_THREAD_ID,
+				parse_mode: 'HTML',
+			}
 		)
 	} catch (error) {
 		console.error('❌ Ошибка при отправке сводки:', error)
