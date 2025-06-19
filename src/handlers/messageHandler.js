@@ -8,6 +8,7 @@ const { sendTelegramMessage } = require('../utils/messaging')
 const { hasMediaHashtag } = require('../utils/helpers')
 const { checkUserBan } = require('../utils/userBan')
 const { handleMessageForAds } = require('./adHandler')
+const { generateForbiddenWordResponse } = require('../utils/gemini')
 const {
 	deleteComment,
 	getJoinRequestByUserId,
@@ -20,7 +21,6 @@ const {
 	MODULES,
 } = require('../config')
 const { handleMediaGroup, handleSingleMessage } = require('./mediaHandler')
-const MOTIVATIONAL_QUOTES = require('../data/quotes')
 
 /**
  * Обрабатывает команду удаления комментария
@@ -105,20 +105,14 @@ async function checkForbiddenWords(bot, ctx) {
 		if (result.found) {
 			const messageLink = `https://t.me/${ctx.message.chat.username}/${ctx.message.message_thread_id}/${ctx.message.message_id}`
 
-			// Получаем случайную цитату
-			const randomQuote =
-				MOTIVATIONAL_QUOTES[
-					Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)
-				]
+			// Генерируем юмористический ответ с учетом контекста всего сообщения
+			let userMessage = await generateForbiddenWordResponse(
+				result.word,
+				messageText
+			)
 
 			// Ответ пользователю, если включено
 			if (MODULES.FORBIDDEN_WORDS.REPLY_TO_USER) {
-				const userMessage = `Ваше сообщение содержит недопустимое слово${
-					MODULES.FORBIDDEN_WORDS.SHOW_WORD_TO_USER
-						? `: <tg-spoiler>${result.word}</tg-spoiler>`
-						: ''
-				}\nПожалуйста, соблюдайте культуру общения нашего сообщества.\n\n💭 <i>${randomQuote}</i>`
-
 				await ctx.reply(userMessage, {
 					reply_to_message_id: ctx.message.message_id,
 					parse_mode: 'HTML',

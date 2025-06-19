@@ -112,7 +112,81 @@ async function sendSummaryToAdmin(bot, summary) {
 	}
 }
 
+/**
+ * Генерирует юмористический ответ на использование запрещенного слова
+ * @param {string} forbiddenWord - Запрещенное слово
+ * @param {string} fullMessage - Полное сообщение пользователя
+ * @returns {Promise<string>} - Сгенерированный ответ
+ */
+async function generateForbiddenWordResponse(forbiddenWord, fullMessage = '') {
+	const axios = require('axios')
+	const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY2
+
+	if (!OPENROUTER_API_KEY) {
+		console.error('❌ Отсутствует API ключ OPENROUTER_API_KEY2')
+		throw new Error('Отсутствует API ключ OPENROUTER_API_KEY2')
+	}
+
+	// Очищаем сообщение от лишних пробелов и переносов строк
+	const cleanMessage = fullMessage.replace(/\s+/g, ' ').trim()
+
+	const prompt = `Сгенерируй очень короткий юмористический ответ (одно предложение!) на использование нецензурного слова в чате.
+
+Контекст сообщения: "${cleanMessage}"
+Обнаруженное нецензурное слово: "${forbiddenWord}"
+
+Важные правила:
+- Используй современный разговорный стиль
+- Добавь 1-2 подходящих эмодзи
+- Сохраняй дружелюбный тон с легкой иронией
+- НЕ повторяй само запрещенное слово
+- Учитывай эмоциональный тон всего сообщения (агрессия/шутка/спор/etc)
+- Если сообщение агрессивное - ответ должен быть более сдержанным
+- Если сообщение шуточное - можно ответить более игриво
+- Никаких нравоучений и морализаторства
+- Ответ должен быть понятен всем
+- Максимум 50-60 символов с пробелами`
+
+	try {
+		console.log('📡 Отправляем запрос к OpenRouter API для генерации ответа')
+		console.log('💬 Обрабатываемое слово:', forbiddenWord)
+		console.log('📝 Контекст сообщения:', cleanMessage)
+
+		const response = await axios.post(
+			'https://openrouter.ai/api/v1/chat/completions',
+			{
+				model: 'anthropic/claude-3-haiku',
+				messages: [
+					{
+						role: 'user',
+						content: prompt,
+					},
+				],
+				max_tokens: 100,
+			},
+			{
+				headers: {
+					Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+					'Content-Type': 'application/json',
+					'HTTP-Referer': 'https://lamp_tg_bot',
+					'X-Title': 'Lamp Telegram Bot',
+				},
+			}
+		)
+
+		console.log('✅ Получен ответ от OpenRouter API')
+		const generatedResponse = response.data.choices[0].message.content.trim()
+
+		return generatedResponse
+	} catch (error) {
+		console.error('❌ Ошибка при генерации ответа:', error)
+		// Возвращаем короткий стандартный ответ
+		return '😅 Давай помягче с выражениями!'
+	}
+}
+
 module.exports = {
 	generateChatSummary,
 	sendSummaryToAdmin,
+	generateForbiddenWordResponse,
 }
