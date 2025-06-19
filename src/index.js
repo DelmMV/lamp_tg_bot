@@ -645,11 +645,16 @@ async function sendDailySummary(bot, isEveningReport = false) {
 			? `📊 <b>Вечерняя сводка чата (20:00)</b>\n\n`
 			: `📊 <b>Утренняя сводка чата (8:00)</b>\n\n`
 
-		// Отправляем сводку
-		await sendTelegramMessage(bot, ADMIN_CHAT_ID, title + summary, {
-			message_thread_id: LAMP_THREAD_ID,
-			parse_mode: 'HTML',
-		})
+		// Отправляем сводку в модераторский чат
+		await sendTelegramMessage(
+			bot,
+			MODULES.CHAT_SUMMARY.REPORT_CHAT_ID,
+			title + summary,
+			{
+				message_thread_id: MODULES.CHAT_SUMMARY.REPORT_THREAD_ID,
+				parse_mode: 'HTML',
+			}
+		)
 	} catch (error) {
 		console.error('❌ Ошибка при отправке сводки чата:', error)
 	}
