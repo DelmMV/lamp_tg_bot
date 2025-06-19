@@ -3,12 +3,7 @@ const {
 	getLast24HoursMessages,
 	getMessagesByDateRange,
 } = require('../utils/chatStorage')
-const {
-	ADMIN_CHAT_ID,
-	MONO_PITER_CHAT_ID,
-	LAMP_THREAD_ID,
-	MODULES,
-} = require('../config')
+const { MONO_PITER_CHAT_ID, MODULES } = require('../config')
 const { sendTelegramMessage } = require('../utils/messaging')
 
 /**
@@ -171,16 +166,16 @@ async function handleSummaryCommand(bot, ctx) {
 
 		// Отладка: выводим ID чата и ID из конфига
 		console.log(
-			`📊 Команда /summary: chat.id=${ctx.chat.id}, ADMIN_CHAT_ID=${ADMIN_CHAT_ID}`
+			`📊 Команда /summary: chat.id=${ctx.chat.id}, MOD_CHAT_ID=${MODULES.CHAT_SUMMARY.REPORT_CHAT_ID}`
 		)
 
-		// Проверяем, что команда вызвана в админ чате (учитываем разные типы)
+		// Проверяем, что команда вызвана в модераторском чате
 		const chatIdStr = ctx.chat.id.toString()
-		const adminChatIdStr = ADMIN_CHAT_ID.toString()
+		const modChatIdStr = MODULES.CHAT_SUMMARY.REPORT_CHAT_ID.toString()
 
-		if (chatIdStr !== adminChatIdStr) {
-			console.log(`❌ Доступ запрещен: ${chatIdStr} !== ${adminChatIdStr}`)
-			await ctx.reply('Эта команда доступна только в админ чате')
+		if (chatIdStr !== modChatIdStr) {
+			console.log(`❌ Доступ запрещен: ${chatIdStr} !== ${modChatIdStr}`)
+			await ctx.reply('Эта команда доступна только в модераторском чате')
 			return
 		}
 
