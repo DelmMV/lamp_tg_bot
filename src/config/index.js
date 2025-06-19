@@ -121,6 +121,8 @@ const config = {
 			// Чат и тред для отчетов
 			REPORT_CHAT_ID: parseInt(process.env.MODERATOR_CHAT_ID, 10),
 			REPORT_THREAD_ID: parseInt(process.env.MODERATOR_THREAD_ID, 10),
+			// Список разрешенных маркетплейсов
+			ALLOWED_MARKETPLACES: ['ozon.ru', 'wildberries.ru', 'aliexpress.ru'],
 		},
 
 		// Сводки чата

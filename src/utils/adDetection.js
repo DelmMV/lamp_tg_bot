@@ -177,6 +177,23 @@ async function analyzeMessageForAds(message, forceRefresh = false) {
 		`✅ Длина сообщения (${messageText.length}) достаточна для анализа (порог: ${effectiveMinLength})`
 	)
 
+	// Проверяем наличие разрешенных маркетплейсов в сообщении
+	const { ALLOWED_MARKETPLACES } = config.MODULES.AD_DETECTION
+	if (ALLOWED_MARKETPLACES && ALLOWED_MARKETPLACES.length > 0) {
+		const hasAllowedMarketplace = ALLOWED_MARKETPLACES.some(marketplace =>
+			messageText.toLowerCase().includes(marketplace.toLowerCase())
+		)
+		if (hasAllowedMarketplace) {
+			console.log('✅ Обнаружена ссылка на разрешенный маркетплейс')
+			return {
+				isLikelyAd: false,
+				adProbability: 0,
+				adTypes: [],
+				explanation: 'Сообщение содержит ссылку на разрешенный маркетплейс',
+			}
+		}
+	}
+
 	// Проверяем кэш, если включен
 	if (CACHE_RESULTS && !forceRefresh) {
 		console.log('🔍 Проверяем кэш для сообщения ID:', message.message_id)
